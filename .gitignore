@@ -1,0 +1,132 @@
+# 민감한 정보가 포함된 파일들
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+**/application-prod.properties
+**/application-prod.yml
+
+# Python 가상환경 및 캐시 (AI 서비스용)
+ai-services/.venv*/
+ai-services/venv*/
+ai-services/**/__pycache__/
+ai-services/**/*.pyc
+ai-services/**/*.pyo
+ai-services/**/*.pyd
+ai-services/**/.Python
+ai-services/**/pip-log.txt
+ai-services/**/pip-delete-this-directory.txt
+ai-services/**/models/*.pkl
+ai-services/**/models/*.joblib
+ai-services/**/data/raw/
+ai-services/**/data/processed/
+
+# 전역 Python 패턴
+**/.venv*/
+**/venv*/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Gradle (Spring Boot)
+backend/**/.gradle/
+backend/**/build/
+!backend/**/gradle/wrapper/gradle-wrapper.jar
+!backend/**/src/main/**/build/
+!backend/**/src/test/**/build/
+
+# Spring Boot 빌드 결과물
+backend/**/target/
+backend/**/out/
+backend/**/*.jar
+backend/**/*.war
+backend/**/*.ear
+
+# Spring Boot 기타 파일들
+backend/**/HELP.md
+backend/**/.apt_generated
+backend/**/.classpath
+backend/**/.factorypath
+backend/**/.project
+backend/**/.settings
+backend/**/.springBeans
+backend/**/.sts4-cache
+backend/**/bin/
+!backend/**/src/main/**/bin/
+!backend/**/src/test/**/bin/
+
+# IDE 관련 파일들
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# 로그 파일들
+logs/
+*.log
+backend/logs/
+ai-services/**/logs/
+
+# 운영체제 관련
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Docker 관련 (선택적)
+docker-compose.override.yml
+
+# 데이터베이스 백업 파일
+*.sql
+backup/
+dumps/
+
+# 임시 파일들
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+
+# 테스트 관련
+coverage/
+test-results/
+.coverage
+htmlcov/
+
+# Node.js (Frontend가 추가될 때를 위해)
+frontend/**/node_modules/
+frontend/**/build/
+frontend/**/dist/
+frontend/**/.next/
+frontend/**/npm-debug.log*
+frontend/**/yarn-debug.log*
+frontend/**/yarn-error.log*
+
+# AI/ML 관련 대용량 파일
+**/*.h5
+**/*.model
+**/*.weights
+**/*.bin
+**/*.onnx
+
+# Jupyter Notebook
+**/.ipynb_checkpoints
+
+# 기타 개발 파일
+.cache/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
