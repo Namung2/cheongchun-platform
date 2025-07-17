@@ -21,6 +21,7 @@ docker rm $(docker ps -aq --filter "name=cheongchun") 2>/dev/null || true
 
 echo -e "${YELLOW}4. 사용하지 않는 볼륨 정리...${NC}"
 docker volume prune -f
+docker-compose -f docker-compose.dev.yml down -v
 
 echo -e "${YELLOW}5. 사용하지 않는 네트워크 정리...${NC}"
 docker network prune -f

@@ -1,4 +1,4 @@
--- 청춘장터 데이터베이스 초기화 스크립트 (pgvector 포함)
+-- 청춘장터 데이터베이스 초기화 스크립트 (username 필드 포함)
 -- 파일 위치: database/init.sql
 
 -- 확장 기능 설치
@@ -9,10 +9,11 @@ CREATE EXTENSION IF NOT EXISTS "vector";
 -- 타임존 설정
 SET timezone = 'Asia/Seoul';
 
--- 사용자 기본 정보 테이블
+-- 사용자 기본 정보 테이블 (username 필드 추가)
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(50) UNIQUE NOT NULL,    -- 사용자가 직접 생성하는 아이디
+    email VARCHAR(255) UNIQUE NOT NULL,      -- 이메일 (별도 관리)
     password VARCHAR(255), -- 소셜 로그인 시 NULL
     name VARCHAR(100) NOT NULL,
     age INTEGER,
@@ -35,7 +36,10 @@ CREATE TABLE IF NOT EXISTS users (
     -- AI 추천용 벡터 (나중에 사용)
     profile_vector vector(384), -- sentence-transformers 기본 차원
     
-    -- 계정 상태
+    -- 계정 상태 및 Spring Security 필드
+    role VARCHAR(20) NOt NULL DEFAULT 'USER' CHECK (role IN ('USER', 'ADMIN')),
+    provider_type VARCHAR(20) DEFAULT 'LOCAL' CHECK (provider_type IN ('LOCAL', 'GOOGLE', 'NAVER', 'KAKAO')),
+    provider_id VARCHAR(100),
     account_status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (account_status IN ('ACTIVE', 'SUSPENDED', 'DELETED')),
     email_verified BOOLEAN DEFAULT FALSE,
     last_login_at TIMESTAMP WITH TIME ZONE,
@@ -49,10 +53,14 @@ CREATE TABLE IF NOT EXISTS social_accounts (
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
     provider VARCHAR(20) NOT NULL CHECK (provider IN ('KAKAO', 'NAVER', 'GOOGLE')),
     provider_id VARCHAR(100) NOT NULL,
+    provider_email VARCHAR(255),
+    provider_name VARCHAR(100),
+    profile_image_url VARCHAR(500),
     access_token TEXT,
     refresh_token TEXT,
-    expires_at TIMESTAMP WITH TIME ZONE,
-    connected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    token_expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(provider, provider_id)
 );
 
@@ -88,7 +96,7 @@ CREATE TABLE IF NOT EXISTS meetings (
     fee INTEGER DEFAULT 0 CHECK (fee >= 0),
     difficulty_level VARCHAR(20) DEFAULT 'BEGINNER' CHECK (difficulty_level IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED')),
     age_range VARCHAR(50),
-    meeting_type VARCHAR(20) DEFAULT 'CRAWLED' CHECK (meeting_type IN ('USER_CREATED', 'CRAWLED')),
+    meeting_type VARCHAR(20) DEFAULT 'USER_CREATED' CHECK (meeting_type IN ('USER_CREATED', 'CRAWLED')),
     source VARCHAR(100),
     
     -- 추가 정보
@@ -174,6 +182,7 @@ CREATE TABLE IF NOT EXISTS blocked_users (
 );
 
 -- 인덱스 생성 (성능 최적화)
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_location ON users(location);
 CREATE INDEX IF NOT EXISTS idx_meetings_category ON meetings(category);
@@ -191,13 +200,13 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created
 CREATE INDEX IF NOT EXISTS idx_meetings_description_vector ON meetings USING ivfflat (description_vector vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS idx_users_profile_vector ON users USING ivfflat (profile_vector vector_cosine_ops) WITH (lists = 100);
 
--- 기본 테스트 데이터 삽입
-INSERT INTO users (email, name, age, gender, location, past_job, is_retired) VALUES
-    ('test@cheongchun.com', '김철수', 55, 'MALE', '서울시 강남구', '회사원', TRUE),
-    ('admin@cheongchun.com', '관리자', 50, 'FEMALE', '서울시 서초구', '교사', TRUE),
-    ('user1@example.com', '박영희', 58, 'FEMALE', '서울시 송파구', '간호사', TRUE),
-    ('user2@example.com', '이민수', 62, 'MALE', '서울시 영등포구', '공무원', TRUE)
-ON CONFLICT (email) DO NOTHING;
+-- 기본 테스트 데이터 삽입 (username 포함)
+INSERT INTO users (username, email, name, age, gender, location, past_job, is_retired, role, provider_type) VALUES
+    ('cheolsu', 'test@cheongchun.com', '김철수', 55, 'MALE', '서울시 강남구', '회사원', TRUE, 'USER', 'LOCAL'),
+    ('admin', 'admin@cheongchun.com', '관리자', 50, 'FEMALE', '서울시 서초구', '교사', TRUE, 'ADMIN', 'LOCAL'),
+    ('younghee', 'user1@example.com', '박영희', 58, 'FEMALE', '서울시 송파구', '간호사', TRUE, 'USER', 'LOCAL'),
+    ('minsu', 'user2@example.com', '이민수', 62, 'MALE', '서울시 영등포구', '공무원', TRUE, 'USER', 'LOCAL')
+ON CONFLICT (username) DO NOTHING;
 
 -- 관심사 데이터 삽입
 INSERT INTO user_interests (user_id, category, interest, priority) VALUES
@@ -212,10 +221,10 @@ ON CONFLICT DO NOTHING;
 
 -- 모임 데이터 삽입
 INSERT INTO meetings (title, description, category, subcategory, location, address, start_date, end_date, max_participants, fee, difficulty_level, age_range, source, organizer_contact, created_by) VALUES
-    ('한강 산책 모임', '한강에서 함께 산책하며 건강도 챙기고 친목도 다져요', 'EXERCISE', 'WALKING', '서울시 영등포구', '한강공원 여의도지구', NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day 2 hours', 15, 0, 'BEGINNER', '50-70세', '서울시 평생학습포털', '010-1234-5678', 1),
-    ('독서 토론 모임', '이달의 책을 읽고 함께 토론해요', 'HOBBY', 'READING', '서울시 강남구', '강남구립도서관', NOW() + INTERVAL '2 days', NOW() + INTERVAL '2 days 2 hours', 10, 5000, 'BEGINNER', '50-65세', '강남구청', '010-2345-6789', 2),
-    ('요리 배우기', '전통 한식 만들기를 함께 배워요', 'HOBBY', 'COOKING', '서울시 송파구', '송파구 문화센터', NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days 3 hours', 12, 15000, 'INTERMEDIATE', '55-70세', '송파구청', '010-3456-7890', 3),
-    ('영화 감상 모임', '클래식 영화를 함께 보고 이야기해요', 'CULTURE', 'MOVIE', '서울시 서초구', '서초구 영화관', NOW() + INTERVAL '4 days', NOW() + INTERVAL '4 days 2 hours', 20, 8000, 'BEGINNER', '50-75세', '서초구청', '010-4567-8901', 4)
+    ('한강 산책 모임', '한강에서 함께 산책하며 건강도 챙기고 친목도 다져요', 'EXERCISE', 'WALKING', '서울시 영등포구', '한강공원 여의도지구', NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day 2 hours', 15, 0, 'BEGINNER', '50-70세', '사용자 생성', '010-1234-5678', 1),
+    ('독서 토론 모임', '이달의 책을 읽고 함께 토론해요', 'HOBBY', 'READING', '서울시 강남구', '강남구립도서관', NOW() + INTERVAL '2 days', NOW() + INTERVAL '2 days 2 hours', 10, 5000, 'BEGINNER', '50-65세', '사용자 생성', '010-2345-6789', 2),
+    ('요리 배우기', '전통 한식 만들기를 함께 배워요', 'HOBBY', 'COOKING', '서울시 송파구', '송파구 문화센터', NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days 3 hours', 12, 15000, 'INTERMEDIATE', '55-70세', '사용자 생성', '010-3456-7890', 3),
+    ('영화 감상 모임', '클래식 영화를 함께 보고 이야기해요', 'CULTURE', 'MOVIE', '서울시 서초구', '서초구 영화관', NOW() + INTERVAL '4 days', NOW() + INTERVAL '4 days 2 hours', 20, 8000, 'BEGINNER', '50-75세', '사용자 생성', '010-4567-8901', 4)
 ON CONFLICT DO NOTHING;
 
 -- 찜 데이터 삽입
@@ -226,9 +235,3 @@ ON CONFLICT DO NOTHING;
 -- 알림 설정 기본값 삽입
 INSERT INTO notification_settings (user_id) VALUES (1), (2), (3), (4)
 ON CONFLICT DO NOTHING;
-
--- 성공 메시지
-SELECT '✅ 청춘장터 데이터베이스 초기화 완료!' as message;
-SELECT '📊 생성된 테이블: users, meetings, user_interests, user_wishlists 등' as tables_info;
-SELECT '🎯 Vector 확장 설치됨: AI 추천 기능 사용 가능' as vector_info;
-SELECT '👥 테스트 사용자: 4명, 🤝 테스트 모임: 4개' as data_info;
