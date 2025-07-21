@@ -2,7 +2,6 @@ package com.cheongchun.config;
 
 import com.cheongchun.backend.security.JwtAuthenticationFilter;
 import com.cheongchun.backend.service.CustomOAuth2UserService;
-import com.cheongchun.backend.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -22,8 +21,8 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(CustomOAuth2UserService customOAuth2UserService, 
-                         JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.customOAuth2UserService = customOAuth2UserService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
@@ -35,12 +34,23 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/", "/error", "/favicon.ico", "/**/*.png", "/**/*.gif", "/**/*.svg", 
-                                       "/**/*.jpg", "/**/*.html", "/**/*.css", "/**/*.js").permitAll()
+                        // 기본 경로들
+                        .requestMatchers("/", "/error", "/favicon.ico").permitAll()
+
+                        // 정적 리소스 (Spring Boot 3.x 호환 패턴)
+                        .requestMatchers("/static/**", "/public/**").permitAll()
+                        .requestMatchers("/*.png", "/*.jpg", "/*.gif", "/*.css", "/*.js").permitAll()
+                        .requestMatchers("/images/**", "/css/**", "/js/**").permitAll()
+
+                        // API 엔드포인트들
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/test/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/oauth2/**").permitAll()
+                        .requestMatchers("/auth/**").permitAll()  // 인증 관련
+                        .requestMatchers("/oauth2/**").permitAll() // OAuth2 관련
+
+                        // 개발 단계에서는 모든 API 허용
+                        //.requestMatchers("/api/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2

@@ -4,6 +4,7 @@ import com.cheongchun.backend.dto.JwtResponse;
 import com.cheongchun.backend.dto.LoginRequest;
 import com.cheongchun.backend.dto.SignUpRequest;
 import com.cheongchun.backend.entity.User;
+import com.cheongchun.backend.repository.UserRepository;
 import com.cheongchun.backend.service.AuthService;
 import com.cheongchun.backend.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,23 +15,25 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheongchun.backend.security.CustomOAuth2User;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")  // /api는 context-path에서 처리되므로 제거
+@RequestMapping("/api/auth")  // /api는 context-path에서 처리되므로 제거
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AuthController {
 
     private final AuthService authService;
     private final JwtUtil jwtUtil;
-
-    public AuthController(AuthService authService, JwtUtil jwtUtil) {
+    private final UserRepository userRepository;
+    public AuthController(AuthService authService, JwtUtil jwtUtil,UserRepository userRepository) {
         this.authService = authService;
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -187,29 +190,72 @@ public class AuthController {
     }
 
     /**
-     * OAuth2 성공 콜백
+     * OAuth2 성공 콜백 (수정된 버전)
      */
     @GetMapping("/oauth2/success")
     public void oAuth2LoginSuccess(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication != null && authentication.isAuthenticated()) {
-            String username = authentication.getName();
-            String jwt = jwtUtil.generateTokenFromUsername(username);
+            try {
+                // OAuth2User 또는 CustomOAuth2User 처리
+                Object principal = authentication.getPrincipal();
+                User user = null;
 
-            // 프론트엔드로 리다이렉트 (나중에 실제 URL로 변경)
-            response.sendRedirect("http://localhost:3000/auth/success?token=" + jwt);
+                if (principal instanceof CustomOAuth2User) {
+                    // CustomOAuth2UserService를 통한 로그인
+                    CustomOAuth2User customUser = (CustomOAuth2User) principal;
+                    String username = customUser.getUsername();
+                    user = userRepository.findByUsername(username).orElse(null);
+                }
+
+                if (user != null) {
+                    // JWT 토큰 생성
+                    String jwt = jwtUtil.generateTokenFromUsername(user.getUsername());
+
+                    // 성공 응답 데이터 생성
+                    Map<String, Object> successData = new HashMap<>();
+                    successData.put("success", true);
+                    successData.put("token", jwt);
+                    successData.put("user", Map.of(
+                            "id", user.getId(),
+                            "email", user.getEmail(),
+                            "name", user.getName(),
+                            "provider", "KAKAO"
+                    ));
+                    successData.put("message", "카카오 로그인 성공");
+
+                    // JSON 응답
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write(new ObjectMapper().writeValueAsString(successData));
+                } else {
+                    response.sendRedirect("/api/auth/oauth2/failure");
+                }
+
+            } catch (Exception e) {
+                response.sendRedirect("/api/auth/oauth2/failure");
+            }
         } else {
-            response.sendRedirect("http://localhost:3000/auth/failure");
+            response.sendRedirect("/api/auth/oauth2/failure");
         }
     }
 
     /**
-     * OAuth2 실패 콜백
+     * OAuth2 실패 콜백 (수정된 버전)
      */
     @GetMapping("/oauth2/failure")
     public void oAuth2LoginFailure(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        response.sendRedirect("http://localhost:3000/auth/failure");
+        Map<String, Object> errorData = new HashMap<>();
+        errorData.put("success", false);
+        errorData.put("error", Map.of(
+                "code", "OAUTH2_LOGIN_FAILED",
+                "message", "소셜 로그인에 실패했습니다",
+                "details", "다시 시도해주세요"
+        ));
+        errorData.put("timestamp", LocalDateTime.now());
+
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write(new ObjectMapper().writeValueAsString(errorData));
     }
 
     /**

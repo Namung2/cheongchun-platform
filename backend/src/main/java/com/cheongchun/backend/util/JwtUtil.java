@@ -24,10 +24,10 @@ public class JwtUtil {
 
     public JwtUtil(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
-        // 보안을 위해 최소 256비트(32바이트) 키 생성
+        // 256비트(32바이트) 키
         String secret = jwtProperties.getSecret();
         if (secret.length() < 32) {
-            // 키가 너무 짧으면 패딩 추가
+            // 짧으면 패딩
             secret = secret + "0".repeat(32 - secret.length());
         }
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
