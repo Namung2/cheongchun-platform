@@ -2,6 +2,8 @@ package com.cheongchun.config;
 
 import com.cheongchun.backend.security.JwtAuthenticationFilter;
 import com.cheongchun.backend.service.CustomOAuth2UserService;
+import com.cheongchun.backend.service.CustomOidcUserService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,11 +21,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final CustomOidcUserService customOidcUserService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
+                          CustomOidcUserService customOidcUserService,
                           JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.customOAuth2UserService = customOAuth2UserService;
+        this.customOidcUserService = customOidcUserService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
@@ -32,7 +37,10 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.disable())
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .maximumSessions(1)
+                        .maxSessionsPreventsLogin(false))
                 .authorizeHttpRequests(authorize -> authorize
                         // 기본 경로들
                         .requestMatchers("/", "/error", "/favicon.ico").permitAll()
@@ -47,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/test/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()  // 인증 관련
                         .requestMatchers("/oauth2/**").permitAll() // OAuth2 관련
+                        .requestMatchers("/login/oauth2/**").permitAll()
 
                         // 개발 단계에서는 모든 API 허용
                         //.requestMatchers("/api/**").permitAll()
@@ -56,14 +65,17 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
+                                .oidcUserService(customOidcUserService)
                         )
                         .successHandler((request, response, authentication) -> {
                             response.sendRedirect("/api/auth/oauth2/success");
                         })
                         .failureHandler((request, response, exception) -> {
-                            response.sendRedirect("/api/auth/oauth2/failure");
+                            response.sendRedirect("/api/auth/oauth2/failure?error="+ exception.getMessage());
                         })
+
                 )
+
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

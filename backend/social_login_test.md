@@ -45,11 +45,11 @@ export KAKAO_CLIENT_SECRET="your-kakao-client-secret"
 
 ### 콜백 URL 설정
 
-각 플랫폼에서 다음 콜백 URL을 등록해야 합니다:
+각 플랫폼에서 다음 콜백 URL을 등록해야 합니다
+"http://localhost:8080/api/login/oauth2/code/google
+http://localhost:8080/api/login/oauth2/code/kakao
+http://localhost:8080/api/login/oauth2/code/naver"
 
-- **Google**: `http://localhost:8080/oauth2/callback/google`
-- **Naver**: `http://localhost:8080/oauth2/callback/naver`
-- **Kakao**: `http://localhost:8080/oauth2/callback/kakao`
 
 ## 4. 테스트 방법
 

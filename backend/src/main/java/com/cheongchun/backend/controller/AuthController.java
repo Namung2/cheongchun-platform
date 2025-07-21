@@ -17,13 +17,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheongchun.backend.security.CustomOAuth2User;
+import com.cheongchun.backend.security.CustomOidcUser;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")  // /api는 context-path에서 처리되므로 제거
+@RequestMapping("/auth")  //
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AuthController {
 
@@ -176,7 +177,6 @@ public class AuthController {
             return ResponseEntity.badRequest().body(errorResponse);
         }
 
-        // TODO: 리프레시 토큰 검증 및 새 토큰 발급 로직 구현
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("success", false);
         errorResponse.put("error", Map.of(
@@ -198,7 +198,7 @@ public class AuthController {
 
         if (authentication != null && authentication.isAuthenticated()) {
             try {
-                // OAuth2User 또는 CustomOAuth2User 처리
+                // OAuth2User, CustomOAuth2User, DefaultOidcUser 처리
                 Object principal = authentication.getPrincipal();
                 User user = null;
 
@@ -206,6 +206,11 @@ public class AuthController {
                     // CustomOAuth2UserService를 통한 로그인
                     CustomOAuth2User customUser = (CustomOAuth2User) principal;
                     String username = customUser.getUsername();
+                    user = userRepository.findByUsername(username).orElse(null);
+                } else if (principal instanceof CustomOidcUser) {
+                    // CustomOidcUserService를 통한 로그인
+                    CustomOidcUser customOidcUser = (CustomOidcUser) principal;
+                    String username = customOidcUser.getUsername();
                     user = userRepository.findByUsername(username).orElse(null);
                 }
 
@@ -221,9 +226,8 @@ public class AuthController {
                             "id", user.getId(),
                             "email", user.getEmail(),
                             "name", user.getName(),
-                            "provider", "KAKAO"
+                            "provider", user.getProviderType().toString()
                     ));
-                    successData.put("message", "카카오 로그인 성공");
 
                     // JSON 응답
                     response.setContentType("application/json;charset=UTF-8");
@@ -245,29 +249,144 @@ public class AuthController {
      */
     @GetMapping("/oauth2/failure")
     public void oAuth2LoginFailure(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String errorMessage = request.getParameter("error");
+        
         Map<String, Object> errorData = new HashMap<>();
         errorData.put("success", false);
-        errorData.put("error", Map.of(
-                "code", "OAUTH2_LOGIN_FAILED",
-                "message", "소셜 로그인에 실패했습니다",
-                "details", "다시 시도해주세요"
-        ));
-        errorData.put("timestamp", LocalDateTime.now());
+        
+        if (errorMessage != null && errorMessage.contains("You already have an account")) {
+            errorData.put("error", Map.of(
+                    "code", "ALREADY_REGISTERED",
+                    "message", "You already have an account",
+                    "details", "Please log in another way"
+            ));
+        } else {
+            errorData.put("error", Map.of(
+                    "code", "OAUTH2_LOGIN_FAILED",
+                    "message", "소셜 로그인에 실패했습니다",
+                    "details", "다시 시도해주세요"
+            ));
+        }
 
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write(new ObjectMapper().writeValueAsString(errorData));
     }
 
     /**
-     * 테스트용 엔드포인트
+     * 현재 로그인된 사용자 정보 조회
      */
-    @GetMapping("/test")
-    public ResponseEntity<?> testAuth() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "인증 컨트롤러가 정상 작동합니다");
-        response.put("timestamp", LocalDateTime.now());
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(HttpServletRequest request) {
+        String token = extractTokenFromRequest(request);
+        
+        if (token == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", Map.of(
+                    "code", "MISSING_TOKEN",
+                    "message", "인증 토큰이 필요합니다",
+                    "details", "Authorization 헤더에 Bearer 토큰을 제공해주세요"
+            ));
+            return ResponseEntity.status(401).body(errorResponse);
+        }
 
-        return ResponseEntity.ok(response);
+        try {
+            if (jwtUtil.isTokenExpired(token)) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", Map.of(
+                        "code", "TOKEN_EXPIRED",
+                        "message", "토큰이 만료되었습니다",
+                        "details", "다시 로그인해주세요"
+                ));
+                return ResponseEntity.status(401).body(errorResponse);
+            }
+
+            String username = jwtUtil.extractUsername(token);
+            Optional<User> userOptional = userRepository.findByUsername(username);
+            
+            if (userOptional.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", Map.of(
+                        "code", "USER_NOT_FOUND",
+                        "message", "사용자를 찾을 수 없습니다",
+                        "details", "토큰에 해당하는 사용자가 존재하지 않습니다"
+                ));
+                return ResponseEntity.status(404).body(errorResponse);
+            }
+
+            User user = userOptional.get();
+            Map<String, Object> successResponse = new HashMap<>();
+            successResponse.put("success", true);
+            successResponse.put("user", Map.of(
+                    "id", user.getId(),
+                    "email", user.getEmail(),
+                    "name", user.getName(),
+                    "username", user.getUsername(),
+                    "provider", user.getProviderType().toString(),
+                    "profileImageUrl", user.getProfileImageUrl(),
+                    "emailVerified", user.isEmailVerified()
+            ));
+            
+            return ResponseEntity.ok(successResponse);
+
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", Map.of(
+                    "code", "INVALID_TOKEN",
+                    "message", "유효하지 않은 토큰입니다",
+                    "details", "토큰 검증에 실패했습니다"
+            ));
+            return ResponseEntity.status(401).body(errorResponse);
+        }
+    }
+
+    /**
+     * 토큰 검증 API
+     */
+    @PostMapping("/verify-token")
+    public ResponseEntity<?> verifyToken(HttpServletRequest request) {
+        String token = extractTokenFromRequest(request);
+        
+        if (token == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("valid", false);
+            errorResponse.put("error", "Missing token");
+            return ResponseEntity.status(401).body(errorResponse);
+        }
+
+        try {
+            boolean isValid = !jwtUtil.isTokenExpired(token);
+            String username = jwtUtil.extractUsername(token);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("valid", isValid);
+            response.put("username", username);
+            response.put("expirationTime", jwtUtil.extractExpiration(token));
+            
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("valid", false);
+            errorResponse.put("error", "Invalid token");
+            return ResponseEntity.status(401).body(errorResponse);
+        }
+    }
+
+    /**
+     * Request에서 Bearer 토큰 추출
+     */
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 }
