@@ -15,15 +15,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.cheongchun.backend.security.CustomOAuth2User;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")  // /api는 context-path에서 처리되므로 제거
+@RequestMapping("/auth")  // /api는 context-path에서 처리되므로 제거
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AuthController {
 
@@ -59,7 +57,6 @@ public class AuthController {
                     "message", e.getMessage(),
                     "details", "회원가입 중 오류가 발생했습니다"
             ));
-            errorResponse.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.badRequest().body(errorResponse);
         }
@@ -88,7 +85,7 @@ public class AuthController {
                     "message", e.getMessage(),
                     "details", "이메일 또는 비밀번호가 올바르지 않습니다"
             ));
-            errorResponse.put("timestamp", LocalDateTime.now());
+
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
@@ -189,74 +186,6 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(errorResponse);
     }
 
-    /**
-     * OAuth2 성공 콜백 (수정된 버전)
-     */
-    @GetMapping("/oauth2/success")
-    public void oAuth2LoginSuccess(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication != null && authentication.isAuthenticated()) {
-            try {
-                // OAuth2User 또는 CustomOAuth2User 처리
-                Object principal = authentication.getPrincipal();
-                User user = null;
-
-                if (principal instanceof CustomOAuth2User) {
-                    // CustomOAuth2UserService를 통한 로그인
-                    CustomOAuth2User customUser = (CustomOAuth2User) principal;
-                    String username = customUser.getUsername();
-                    user = userRepository.findByUsername(username).orElse(null);
-                }
-
-                if (user != null) {
-                    // JWT 토큰 생성
-                    String jwt = jwtUtil.generateTokenFromUsername(user.getUsername());
-
-                    // 성공 응답 데이터 생성
-                    Map<String, Object> successData = new HashMap<>();
-                    successData.put("success", true);
-                    successData.put("token", jwt);
-                    successData.put("user", Map.of(
-                            "id", user.getId(),
-                            "email", user.getEmail(),
-                            "name", user.getName(),
-                            "provider", "KAKAO"
-                    ));
-                    successData.put("message", "카카오 로그인 성공");
-
-                    // JSON 응답
-                    response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write(new ObjectMapper().writeValueAsString(successData));
-                } else {
-                    response.sendRedirect("/api/auth/oauth2/failure");
-                }
-
-            } catch (Exception e) {
-                response.sendRedirect("/api/auth/oauth2/failure");
-            }
-        } else {
-            response.sendRedirect("/api/auth/oauth2/failure");
-        }
-    }
-
-    /**
-     * OAuth2 실패 콜백 (수정된 버전)
-     */
-    @GetMapping("/oauth2/failure")
-    public void oAuth2LoginFailure(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        Map<String, Object> errorData = new HashMap<>();
-        errorData.put("success", false);
-        errorData.put("error", Map.of(
-                "code", "OAUTH2_LOGIN_FAILED",
-                "message", "소셜 로그인에 실패했습니다",
-                "details", "다시 시도해주세요"
-        ));
-        errorData.put("timestamp", LocalDateTime.now());
-
-        response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(new ObjectMapper().writeValueAsString(errorData));
-    }
 
     /**
      * 테스트용 엔드포인트

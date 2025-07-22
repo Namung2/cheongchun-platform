@@ -1,7 +1,6 @@
 package com.cheongchun.config;
 
 import com.cheongchun.backend.security.JwtAuthenticationFilter;
-import com.cheongchun.backend.service.CustomOAuth2UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,13 +17,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final CustomOAuth2UserService customOAuth2UserService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OAuth2Config oauth2Config;
 
-    public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
-                          JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.customOAuth2UserService = customOAuth2UserService;
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                         OAuth2Config oauth2Config) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.oauth2Config = oauth2Config;
     }
 
     @Bean
@@ -53,17 +52,7 @@ public class SecurityConfig {
 
                         .anyRequest().authenticated()
                 )
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService)
-                        )
-                        .successHandler((request, response, authentication) -> {
-                            response.sendRedirect("/api/auth/oauth2/success");
-                        })
-                        .failureHandler((request, response, exception) -> {
-                            response.sendRedirect("/api/auth/oauth2/failure");
-                        })
-                )
+                .oauth2Login(oauth2Config::configureOAuth2Login)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
