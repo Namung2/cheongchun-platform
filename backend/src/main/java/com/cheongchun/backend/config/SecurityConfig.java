@@ -1,4 +1,4 @@
-package com.cheongchun.config;
+package com.cheongchun.backend.config;
 
 import com.cheongchun.backend.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;

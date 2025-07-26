@@ -1,6 +1,6 @@
 package com.cheongchun.backend.util;
 
-import com.cheongchun.config.JwtProperties;
+import com.cheongchun.backend.config.JwtProperties;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;

@@ -55,7 +55,7 @@ public class User implements UserDetails {
     private String providerId;
 
     @Column(name = "email_verified")
-    private Boolean emailVerified = false;
+    private boolean emailVerified = false;
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
@@ -71,6 +71,7 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<RefreshToken> refreshTokens;
+
 
     public enum Role {
         USER, ADMIN

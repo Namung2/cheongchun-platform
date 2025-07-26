@@ -1,4 +1,4 @@
-package com.cheongchun.config;
+package com.cheongchun.backend.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;

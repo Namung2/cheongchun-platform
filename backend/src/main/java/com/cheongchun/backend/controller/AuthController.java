@@ -15,10 +15,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import java.io.IOException;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+
 
 @RestController
 @RequestMapping("/auth")  // /api는 context-path에서 처리되므로 제거
@@ -202,23 +205,43 @@ public class AuthController {
         try {
             User currentUser = (User) authentication.getPrincipal();
 
+            // User 객체에서 안전하게 데이터 추출
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("id", currentUser.getId());
+            userData.put("username", currentUser.getUsername());
+            userData.put("email", currentUser.getEmail());
+            userData.put("name", currentUser.getName());
+            userData.put("profileImageUrl", currentUser.getProfileImageUrl()); // null 가능
+            userData.put("role", currentUser.getRole() != null ? currentUser.getRole().name() : "USER");
+            userData.put("providerType", currentUser.getProviderType() != null ? currentUser.getProviderType().name() : "LOCAL");
+            userData.put("emailVerified", currentUser.getEmailVerified() != null ? currentUser.getEmailVerified() : false);
+            userData.put("createdAt", currentUser.getCreatedAt());
+            userData.put("updatedAt", currentUser.getUpdatedAt());
+
+            // authorities 안전하게 처리
+            List<Map<String, String>> authorities = new ArrayList<>();
+            if (currentUser.getAuthorities() != null) {
+                for (var authority : currentUser.getAuthorities()) {
+                    Map<String, String> auth = new HashMap<>();
+                    auth.put("authority", authority.getAuthority());
+                    authorities.add(auth);
+                }
+            }
+            userData.put("authorities", authorities);
+
+            userData.put("enabled", currentUser.isEnabled());
+            userData.put("accountNonExpired", currentUser.isAccountNonExpired());
+            userData.put("credentialsNonExpired", currentUser.isCredentialsNonExpired());
+            userData.put("accountNonLocked", currentUser.isAccountNonLocked());
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("data", Map.of(
-                    "id", currentUser.getId(),
-                    "username", currentUser.getUsername(),
-                    "email", currentUser.getEmail(),
-                    "name", currentUser.getName(),
-                    "profileImageUrl", currentUser.getProfileImageUrl(),
-                    "role", currentUser.getRole(),
-                    "providerType", currentUser.getProviderType(),
-                    "emailVerified", currentUser.getEmailVerified(),
-                    "createdAt", currentUser.getCreatedAt()
-            ));
+            response.put("data", userData);
             response.put("message", "사용자 정보 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
+
         } catch (ClassCastException e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
@@ -230,9 +253,20 @@ public class AuthController {
             errorResponse.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        } catch (Exception e) {
+            // 추가된 예외 처리
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", Map.of(
+                    "code", "INTERNAL_ERROR",
+                    "message", "사용자 정보 조회 중 오류가 발생했습니다",
+                    "details", e.getMessage() != null ? e.getMessage() : "Unknown error"
+            ));
+            errorResponse.put("timestamp", LocalDateTime.now());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
-
     /**
      * 로그아웃 (현재 디바이스만)
      */

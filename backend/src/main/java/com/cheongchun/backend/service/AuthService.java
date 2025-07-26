@@ -51,8 +51,8 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
         user.setName(signUpRequest.getName());
         user.setProviderType(User.ProviderType.LOCAL);
-        user.setEmailVerified(true); // 개발 단계에서는 자동 검증
-
+        user.setRole(User.Role.USER);           //기본값
+        user.setEmailVerified(false);
         User savedUser = userRepository.save(user);
 
         // 인증 수행
