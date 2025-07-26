@@ -235,3 +235,32 @@ ON CONFLICT DO NOTHING;
 -- 알림 설정 기본값 삽입
 INSERT INTO notification_settings (user_id) VALUES (1), (2), (3), (4)
 ON CONFLICT DO NOTHING;
+-- 리프레시 토큰 테이블
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    token VARCHAR(500) UNIQUE NOT NULL,
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    used BOOLEAN DEFAULT FALSE NOT NULL,
+    revoked BOOLEAN DEFAULT FALSE NOT NULL,
+    user_agent TEXT,
+    ip_address VARCHAR(45)
+);
+
+-- 인덱스 생성
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_valid ON refresh_tokens(user_id, revoked, used, expires_at);
+
+-- 정리용 인덱스
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_cleanup ON refresh_tokens(expires_at, revoked, used);
+
+-- 코멘트 추가
+COMMENT ON TABLE refresh_tokens IS '리프레시 토큰 관리 테이블';
+COMMENT ON COLUMN refresh_tokens.token IS '리프레시 토큰 값 (Base64 인코딩된 512비트 랜덤 값)';
+COMMENT ON COLUMN refresh_tokens.used IS '토큰 사용 여부 (one-time use)';
+COMMENT ON COLUMN refresh_tokens.revoked IS '토큰 무효화 여부';
+COMMENT ON COLUMN refresh_tokens.user_agent IS '클라이언트 User-Agent (디바이스 식별용)';
+COMMENT ON COLUMN refresh_tokens.ip_address IS '클라이언트 IP 주소 (보안 로그용)';

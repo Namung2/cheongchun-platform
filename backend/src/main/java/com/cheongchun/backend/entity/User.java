@@ -57,6 +57,9 @@ public class User implements UserDetails {
     @Column(name = "email_verified")
     private Boolean emailVerified = false;
 
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -65,6 +68,9 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<SocialAccount> socialAccounts;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<RefreshToken> refreshTokens;
 
     public enum Role {
         USER, ADMIN
@@ -194,6 +200,14 @@ public class User implements UserDetails {
         this.emailVerified = emailVerified;
     }
 
+    public LocalDateTime getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -216,5 +230,13 @@ public class User implements UserDetails {
 
     public void setSocialAccounts(Set<SocialAccount> socialAccounts) {
         this.socialAccounts = socialAccounts;
+    }
+
+    public Set<RefreshToken> getRefreshTokens() {
+        return refreshTokens;
+    }
+
+    public void setRefreshTokens(Set<RefreshToken> refreshTokens) {
+        this.refreshTokens = refreshTokens;
     }
 }
