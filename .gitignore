@@ -5,6 +5,7 @@
 .env.staging
 *.env
 **/application.properties
+**/application-local.properties
 **/application-prod.yml
 
 # Python 가상환경 및 캐시 (AI 서비스용)

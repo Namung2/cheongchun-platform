@@ -15,16 +15,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/auth")  // /api는 context-path에서 처리되므로 제거
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AuthController {
-
     private final AuthService authService;
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
@@ -72,7 +71,6 @@ public class AuthController {
                     "message", e.getMessage(),
                     "details", "회원가입 중 오류가 발생했습니다"
             ));
-            errorResponse.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.badRequest().body(errorResponse);
         }
@@ -115,7 +113,7 @@ public class AuthController {
                     "message", e.getMessage(),
                     "details", "이메일 또는 비밀번호가 올바르지 않습니다"
             ));
-            errorResponse.put("timestamp", LocalDateTime.now());
+
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
@@ -328,7 +326,6 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
-
     /**
      * 사용자 활성 세션 조회
      */
@@ -380,7 +377,6 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
-
     /**
      * 테스트용 엔드포인트
      */
