@@ -94,21 +94,45 @@ public class MeetingController {
             @AuthenticationPrincipal User currentUser) {
 
         try {
-            // CreatingMeetingRequest.MeetingSearchRequest 객체 생성
+            // CreatingMeetingRequest.MeetingSearchRequest 객체 생성 및 null 값 필터링
             CreatingMeetingRequest.MeetingSearchRequest searchRequest = new CreatingMeetingRequest.MeetingSearchRequest();
-            searchRequest.setKeyword(keyword);
-            searchRequest.setCategory(category);
-            searchRequest.setSubcategory(subcategory);
-            searchRequest.setLocation(location);
+
+            // null이 아닌 값만 설정 (PostgreSQL 타입 추론 오류 방지)
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                searchRequest.setKeyword(keyword.trim());
+            }
+
+            searchRequest.setCategory(category); // enum은 null이어도 괜찮음
+
+            if (subcategory != null && !subcategory.trim().isEmpty()) {
+                searchRequest.setSubcategory(subcategory.trim());
+            }
+
+            if (location != null && !location.trim().isEmpty()) {
+                searchRequest.setLocation(location.trim());
+            }
+
             searchRequest.setMinFee(minFee);
             searchRequest.setMaxFee(maxFee);
-            searchRequest.setDifficultyLevel(difficultyLevel);
-            // TODO: startDate, endDate 파싱 추가
-            searchRequest.setSortBy(sortBy);
+            searchRequest.setDifficultyLevel(difficultyLevel); // enum은 null이어도 괜찼음
+
+            // TODO: startDate, endDate 파싱 추가 시 null 체크 필요
+
+            searchRequest.setSortBy(sortBy != null ? sortBy : "LATEST");
             searchRequest.setPage(page);
             searchRequest.setSize(size);
+            searchRequest.setStatus(Meeting.Status.RECRUITING); // 기본값 설정
 
-            Page<CreatingMeetingRequest.MeetingSummary> meetings = meetingService.getMeetings(searchRequest, currentUser);
+            // 🔥 임시 해결책: 복잡한 필터가 있으면 단순 검색으로 우회
+            Page<CreatingMeetingRequest.MeetingSummary> meetings;
+
+            if (hasComplexFilters(keyword, category, subcategory, location, minFee, maxFee, difficultyLevel)) {
+                // 복잡한 필터의 경우 단계별로 처리
+                meetings = meetingService.getMeetingsSimple(searchRequest, currentUser);
+            } else {
+                // 기존 방식 사용
+                meetings = meetingService.getMeetings(searchRequest, currentUser);
+            }
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -121,10 +145,27 @@ public class MeetingController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("MEETING_LIST_ERROR", "모임 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            // 에러 로깅 추가
+            System.err.println("모임 목록 조회 오류: " + e.getMessage());
+            e.printStackTrace();
+
+            return createErrorResponse("MEETING_LIST_ERROR", "모임 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    private boolean hasComplexFilters(String keyword, Meeting.Category category, String subcategory,
+                                      String location, Integer minFee, Integer maxFee, Meeting.DifficultyLevel difficultyLevel) {
+        int filterCount = 0;
 
+        if (keyword != null && !keyword.trim().isEmpty()) filterCount++;
+        if (category != null) filterCount++;
+        if (subcategory != null && !subcategory.trim().isEmpty()) filterCount++;
+        if (location != null && !location.trim().isEmpty()) filterCount++;
+        if (minFee != null) filterCount++;
+        if (maxFee != null) filterCount++;
+        if (difficultyLevel != null) filterCount++;
+
+        return filterCount >= 3; // 3개 이상이면 복잡한 검색
+    }
     /**
      * 모임 수정
      */

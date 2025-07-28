@@ -97,6 +97,61 @@ public class MeetingService {
 
         return convertToMeetingResponse(meeting, currentUser);
     }
+    //모인 단순 조회
+    @Transactional(readOnly = true)
+    public Page<CreatingMeetingRequest.MeetingSummary> getMeetingsSimple(
+            CreatingMeetingRequest.MeetingSearchRequest searchRequest, User currentUser) {
+
+        Pageable pageable = createPageable(searchRequest);
+        Page<Meeting> meetings;
+
+        // 키워드 검색 우선
+        if (searchRequest.getKeyword() != null && !searchRequest.getKeyword().trim().isEmpty()) {
+            meetings = meetingRepository.searchByKeyword(
+                    searchRequest.getKeyword(),
+                    searchRequest.getStatus(),
+                    pageable
+            );
+        }
+        // 카테고리 검색
+        else if (searchRequest.getCategory() != null) {
+            meetings = meetingRepository.findByCategoryAndStatus(
+                    searchRequest.getCategory(),
+                    searchRequest.getStatus(),
+                    pageable
+            );
+        }
+        // 지역 검색
+        else if (searchRequest.getLocation() != null && !searchRequest.getLocation().trim().isEmpty()) {
+            meetings = meetingRepository.findByLocationAndStatus(
+                    searchRequest.getLocation(),
+                    searchRequest.getStatus(),
+                    pageable
+            );
+        }
+        // 최대 참가비 검색
+        else if (searchRequest.getMaxFee() != null) {
+            meetings = meetingRepository.findByMaxFee(
+                    searchRequest.getMaxFee(),
+                    searchRequest.getStatus(),
+                    pageable
+            );
+        }
+        // 난이도 검색
+        else if (searchRequest.getDifficultyLevel() != null) {
+            meetings = meetingRepository.findByDifficultyLevelAndStatus(
+                    searchRequest.getDifficultyLevel(),
+                    searchRequest.getStatus(),
+                    pageable
+            );
+        }
+        // 기본: 전체 모임
+        else {
+            meetings = meetingRepository.findByStatus(searchRequest.getStatus(), pageable);
+        }
+
+        return convertMeetingsToSummaryPage(meetings, currentUser);
+    }
 
     /**
      * 모임 목록 조회

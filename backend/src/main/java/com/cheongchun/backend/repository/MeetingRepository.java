@@ -126,20 +126,23 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
     // 만료된 모임 상태 업데이트
     @Modifying
-    @Query("UPDATE Meeting m SET m.status = 'CLOSED' WHERE m.endDate < :now AND m.status IN ('RECRUITING', 'FULL')")
-    void closeExpiredMeetings(@Param("now") LocalDateTime now);
+    @Query("UPDATE Meeting m SET m.status = :closedStatus WHERE m.endDate < :now AND m.status IN (:activeStatuses)")
+    void closeExpiredMeetings(@Param("now") LocalDateTime now,
+                              @Param("closedStatus") Meeting.Status closedStatus,
+                              @Param("activeStatuses") List<Meeting.Status> activeStatuses);
 
-    // 고급 검색 (가격 범위, 날짜 범위, 지역, 카테고리 모두 포함)
+    // 고급 검색 (PostgreSQL null 처리 개선)
     @Query("SELECT m FROM Meeting m WHERE " +
-            "(:category IS NULL OR m.category = :category) AND " +
-            "(:subcategory IS NULL OR m.subcategory = :subcategory) AND " +
-            "(:location IS NULL OR m.location LIKE %:location%) AND " +
-            "(:minFee IS NULL OR m.fee >= :minFee) AND " +
-            "(:maxFee IS NULL OR m.fee <= :maxFee) AND " +
-            "(:difficulty IS NULL OR m.difficultyLevel = :difficulty) AND " +
-            "(:startDate IS NULL OR m.startDate >= :startDate) AND " +
-            "(:endDate IS NULL OR m.startDate <= :endDate) AND " +
+            "(CAST(:category AS string) IS NULL OR m.category = :category) AND " +
+            "(CAST(:subcategory AS string) IS NULL OR m.subcategory = :subcategory) AND " +
+            "(CAST(:location AS string) IS NULL OR m.location LIKE %:location%) AND " +
+            "(CAST(:minFee AS integer) IS NULL OR m.fee >= :minFee) AND " +
+            "(CAST(:maxFee AS integer) IS NULL OR m.fee <= :maxFee) AND " +
+            "(CAST(:difficulty AS string) IS NULL OR m.difficultyLevel = :difficulty) AND " +
+            "(CAST(:startDate AS timestamp) IS NULL OR m.startDate >= :startDate) AND " +
+            "(CAST(:endDate AS timestamp) IS NULL OR m.startDate <= :endDate) AND " +
             "m.status = :status")
+
     Page<Meeting> findMeetingsWithAdvancedFilters(
             @Param("category") Meeting.Category category,
             @Param("subcategory") String subcategory,
@@ -150,6 +153,31 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("status") Meeting.Status status,
+            Pageable pageable
+    );
+
+    // Native Query 버전 (더 안전한 방법)
+    @Query(value = "SELECT * FROM meetings m WHERE " +
+            "(:category::varchar IS NULL OR m.category = :category::varchar) AND " +
+            "(:subcategory::varchar IS NULL OR m.subcategory = :subcategory::varchar) AND " +
+            "(:location::varchar IS NULL OR m.location ILIKE CONCAT('%', :location::varchar, '%')) AND " +
+            "(:minFee::integer IS NULL OR m.fee >= :minFee::integer) AND " +
+            "(:maxFee::integer IS NULL OR m.fee <= :maxFee::integer) AND " +
+            "(:difficulty::varchar IS NULL OR m.difficulty_level = :difficulty::varchar) AND " +
+            "(:startDate::timestamp IS NULL OR m.start_date >= :startDate::timestamp) AND " +
+            "(:endDate::timestamp IS NULL OR m.start_date <= :endDate::timestamp) AND " +
+            "m.status = :status::varchar",
+            nativeQuery = true)
+    Page<Meeting> findMeetingsWithAdvancedFiltersNative(
+            @Param("category") String category,
+            @Param("subcategory") String subcategory,
+            @Param("location") String location,
+            @Param("minFee") Integer minFee,
+            @Param("maxFee") Integer maxFee,
+            @Param("difficulty") String difficulty,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("status") String status,
             Pageable pageable
     );
 
