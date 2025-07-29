@@ -36,6 +36,7 @@ public interface MeetingParticipantRepository extends JpaRepository<MeetingParti
 
     List<MeetingParticipant> findByMeetingIdAndStatus(Long meetingId, MeetingParticipant.Status status);
 
+    Page<MeetingParticipant> findByMeetingIdAndStatus(Long meetingId, MeetingParticipant.Status status, Pageable pageable);
     // 사용자별 참가 모임 조회
     List<MeetingParticipant> findByUser(User user);
 
@@ -114,4 +115,5 @@ public interface MeetingParticipantRepository extends JpaRepository<MeetingParti
     // 취소 가능한 참가 신청 조회
     @Query("SELECT p FROM MeetingParticipant p WHERE p.user.id = :userId AND p.status IN ('PENDING', 'APPROVED') AND p.meeting.startDate > CURRENT_TIMESTAMP")
     List<MeetingParticipant> findCancellableApplications(@Param("userId") Long userId);
+
 }

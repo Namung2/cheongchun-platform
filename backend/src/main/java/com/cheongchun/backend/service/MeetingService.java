@@ -571,7 +571,7 @@ public class MeetingService {
                 .findByMeetingIdAndStatus(meeting.getId(), MeetingParticipant.Status.APPROVED)
                 .stream()
                 .limit(10)
-                .collect(Collectors.toList());
+                .toList();
 
         response.setParticipants(approvedParticipants.stream()
                 .map(this::convertToParticipantSummary)
