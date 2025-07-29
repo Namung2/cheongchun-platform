@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -276,19 +277,77 @@ public class MeetingService {
         return meetings.map(meeting -> convertToMeetingSummary(meeting, currentUser));
     }
 
+
     /**
-     * 모임 조회 및 권한 확인
+     * 모임 조회 및 권한 확인 (개선된 버전)
      */
     private Meeting findMeetingWithAuthorization(Long meetingId, User currentUser, String action) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new RuntimeException("모임을 찾을 수 없습니다"));
 
-        if (!meeting.getCreatedBy().getId().equals(currentUser.getId())) {
+        // 권한 확인: ID 기반으로 비교 (더 안전한 방법)
+        if (meeting.getCreatedBy() == null) {
+            throw new RuntimeException("모임 주최자 정보가 없습니다");
+        }
+
+        if (currentUser == null) {
+            throw new RuntimeException("인증된 사용자가 아닙니다");
+        }
+
+        if (!Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId())) {
             throw new RuntimeException("모임을 " + action + "할 권한이 없습니다");
         }
 
         return meeting;
     }
+
+    /**
+     * 관리자 권한 확인 (추가 메서드)
+     */
+    private boolean isAdminOrOwner(Meeting meeting, User currentUser) {
+        if (currentUser == null) {
+            return false;
+        }
+
+        // 관리자이거나 모임 주최자인 경우
+        return currentUser.getRole() == User.Role.ADMIN ||
+                Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
+    }
+
+    /**
+     * 모임 권한 확인 (읽기 전용 - 조회용)
+     */
+    private boolean canViewMeeting(Meeting meeting, User currentUser) {
+        // 모든 사용자가 모임을 조회할 수 있음 (공개된 정보)
+        return true;
+    }
+
+    /**
+     * 모임 수정 권한 확인
+     */
+    private boolean canEditMeeting(Meeting meeting, User currentUser) {
+        if (currentUser == null) {
+            return false;
+        }
+
+        // 관리자이거나 모임 주최자만 수정 가능
+        return currentUser.getRole() == User.Role.ADMIN ||
+                Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
+    }
+
+    /**
+     * 모임 삭제 권한 확인
+     */
+    private boolean canDeleteMeeting(Meeting meeting, User currentUser) {
+        if (currentUser == null) {
+            return false;
+        }
+
+        // 관리자이거나 모임 주최자만 삭제 가능
+        return currentUser.getRole() == User.Role.ADMIN ||
+                Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
+    }
+
 
     /**
      * 기본 페이지네이션 생성 (시간 역순)

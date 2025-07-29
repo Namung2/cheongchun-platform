@@ -271,30 +271,64 @@ public class MeetingController {
      */
     @GetMapping("/category/{category}")
     public ResponseEntity<?> getMeetingsByCategory(
-            @PathVariable Meeting.Category category,
+            @PathVariable String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal User currentUser) {
 
         try {
-            Page<CreatingMeetingRequest.MeetingSummary> meetings = meetingService.getMeetingsByCategory(category, page, size, currentUser);
+            // 카테고리 변환 및 검증
+            Meeting.Category meetingCategory = parseCategory(category);
+
+            Page<CreatingMeetingRequest.MeetingSummary> meetings = meetingService.getMeetingsByCategory(meetingCategory, page, size, currentUser);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
                     "pagination", createPaginationInfo(meetings),
-                    "category", category.name()
+                    "category", meetingCategory.name()
             ));
-            response.put("message", category.name() + " 카테고리 모임 조회 성공");
+            response.put("message", meetingCategory.name() + " 카테고리 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return createErrorResponse("INVALID_CATEGORY",
+                    "유효하지 않은 카테고리입니다. 사용 가능한 카테고리: " + getValidCategories(),
+                    HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             return createErrorResponse("CATEGORY_ERROR", "카테고리별 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
+    /**
+     * 카테고리 문자열을 enum으로 안전하게 변환
+     */
+    private Meeting.Category parseCategory(String categoryStr) {
+        if (categoryStr == null || categoryStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("카테고리가 제공되지 않았습니다");
+        }
+
+        // 중괄호 제거 (혹시 {CULTURE} 형태로 들어왔을 경우)
+        String cleanCategory = categoryStr.replaceAll("[{}]", "").trim().toUpperCase();
+
+        try {
+            return Meeting.Category.valueOf(cleanCategory);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("유효하지 않은 카테고리: " + categoryStr +
+                    ". 사용 가능한 카테고리: " + getValidCategories());
+        }
+    }
+
+    /**
+     * 유효한 카테고리 목록 반환
+     */
+    private String getValidCategories() {
+        return java.util.Arrays.stream(Meeting.Category.values())
+                .map(Enum::name)
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
     /**
      * 내가 생성한 모임 조회
      */
@@ -492,28 +526,4 @@ public class MeetingController {
         return null;
     }
 
-    /**
-     * 테스트용 엔드포인트
-     */
-    @GetMapping("/test")
-    public ResponseEntity<?> testMeetingController() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "모임 컨트롤러가 정상 작동합니다");
-        response.put("timestamp", LocalDateTime.now());
-        response.put("availableEndpoints", Map.of(
-                "POST", "/api/meetings - 모임 생성",
-                "GET", "/api/meetings - 모임 목록",
-                "GET", "/api/meetings/{id} - 모임 상세",
-                "PUT", "/api/meetings/{id} - 모임 수정",
-                "DELETE", "/api/meetings/{id} - 모임 삭제",
-                "GET", "/api/meetings/today-best - 오늘의 베스트",
-                "GET", "/api/meetings/recommended - 추천 모임",
-                "GET", "/api/meetings/my - 내 모임",
-                "GET", "/api/meetings/participating - 참여 모임",
-                "GET", "/api/meetings/search?keyword= - 검색"
-        ));
-
-        return ResponseEntity.ok(response);
-    }
 }

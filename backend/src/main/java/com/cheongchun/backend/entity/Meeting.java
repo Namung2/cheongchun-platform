@@ -4,15 +4,21 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Set;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "meetings")
 public class Meeting {
 
+    // Getters and Setters
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -148,6 +154,42 @@ public class Meeting {
         updatedAt = LocalDateTime.now();
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+
+        Meeting other = (Meeting) obj;
+
+        // ID가 둘 다 null이 아닌 경우, ID로 비교
+        if (this.id != null && other.id != null) {
+            return Objects.equals(this.id, other.id);
+        }
+
+        // ID가 null인 경우 (새로 생성된 엔티티), 비즈니스 키로 비교
+        // 제목 + 시작시간 + 생성자로 비교 (충분히 unique한 조합)
+        return Objects.equals(this.title, other.title) &&
+                Objects.equals(this.startDate, other.startDate) &&
+                Objects.equals(this.createdBy, other.createdBy);
+    }
+
+    @Override
+    public int hashCode() {
+        // ID가 있으면 ID 기반
+        if (this.id != null) {
+            return Objects.hash(this.id);
+        }
+
+        // ID가 null인 경우 비즈니스 키 기반
+        return Objects.hash(this.title, this.startDate, this.createdBy);
+    }
+
+
     // 비즈니스 메서드
     public boolean canJoin() {
         return status == Status.RECRUITING &&
@@ -179,97 +221,4 @@ public class Meeting {
         this.dailyViewCount = (this.dailyViewCount == null ? 0 : this.dailyViewCount) + 1;
     }
 
-    // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
-    public Category getCategory() { return category; }
-    public void setCategory(Category category) { this.category = category; }
-
-    public String getSubcategory() { return subcategory; }
-    public void setSubcategory(String subcategory) { this.subcategory = subcategory; }
-
-    public String getLocation() { return location; }
-    public void setLocation(String location) { this.location = location; }
-
-    public String getAddress() { return address; }
-    public void setAddress(String address) { this.address = address; }
-
-    public BigDecimal getLatitude() { return latitude; }
-    public void setLatitude(BigDecimal latitude) { this.latitude = latitude; }
-
-    public BigDecimal getLongitude() { return longitude; }
-    public void setLongitude(BigDecimal longitude) { this.longitude = longitude; }
-
-    public LocalDateTime getStartDate() { return startDate; }
-    public void setStartDate(LocalDateTime startDate) { this.startDate = startDate; }
-
-    public LocalDateTime getEndDate() { return endDate; }
-    public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
-
-    public Integer getMaxParticipants() { return maxParticipants; }
-    public void setMaxParticipants(Integer maxParticipants) { this.maxParticipants = maxParticipants; }
-
-    public Integer getCurrentParticipants() { return currentParticipants; }
-    public void setCurrentParticipants(Integer currentParticipants) { this.currentParticipants = currentParticipants; }
-
-    public Integer getFee() { return fee; }
-    public void setFee(Integer fee) { this.fee = fee; }
-
-    public DifficultyLevel getDifficultyLevel() { return difficultyLevel; }
-    public void setDifficultyLevel(DifficultyLevel difficultyLevel) { this.difficultyLevel = difficultyLevel; }
-
-    public String getAgeRange() { return ageRange; }
-    public void setAgeRange(String ageRange) { this.ageRange = ageRange; }
-
-    public MeetingType getMeetingType() { return meetingType; }
-    public void setMeetingType(MeetingType meetingType) { this.meetingType = meetingType; }
-
-    public String getSource() { return source; }
-    public void setSource(String source) { this.source = source; }
-
-    public String getOrganizerContact() { return organizerContact; }
-    public void setOrganizerContact(String organizerContact) { this.organizerContact = organizerContact; }
-
-    public String getPreparationNeeded() { return preparationNeeded; }
-    public void setPreparationNeeded(String preparationNeeded) { this.preparationNeeded = preparationNeeded; }
-
-    public String getMeetingRules() { return meetingRules; }
-    public void setMeetingRules(String meetingRules) { this.meetingRules = meetingRules; }
-
-    public Integer getViewCount() { return viewCount; }
-    public void setViewCount(Integer viewCount) { this.viewCount = viewCount; }
-
-    public Integer getDailyViewCount() { return dailyViewCount; }
-    public void setDailyViewCount(Integer dailyViewCount) { this.dailyViewCount = dailyViewCount; }
-
-    public Integer getWishlistCount() { return wishlistCount; }
-    public void setWishlistCount(Integer wishlistCount) { this.wishlistCount = wishlistCount; }
-
-    public Integer getShareCount() { return shareCount; }
-    public void setShareCount(Integer shareCount) { this.shareCount = shareCount; }
-
-    public Status getStatus() { return status; }
-    public void setStatus(Status status) { this.status = status; }
-
-    public User getCreatedBy() { return createdBy; }
-    public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-
-    public Set<MeetingParticipant> getParticipants() { return participants; }
-    public void setParticipants(Set<MeetingParticipant> participants) { this.participants = participants; }
-
-    public Set<UserWishlist> getWishlists() { return wishlists; }
-    public void setWishlists(Set<UserWishlist> wishlists) { this.wishlists = wishlists; }
 }
