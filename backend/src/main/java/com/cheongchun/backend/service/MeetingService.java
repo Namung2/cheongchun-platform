@@ -3,6 +3,7 @@ package com.cheongchun.backend.service;
 import com.cheongchun.backend.dto.*;
 import com.cheongchun.backend.entity.Meeting;
 import com.cheongchun.backend.entity.MeetingParticipant;
+import com.cheongchun.backend.service.MeetingService;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.entity.UserWishlist;
 import com.cheongchun.backend.repository.MeetingParticipantRepository;
@@ -32,13 +33,15 @@ public class MeetingService {
     private final MeetingParticipantRepository participantRepository;
     @Autowired
     private final UserWishlistRepository wishlistRepository;
-
+    @Autowired
+    private final MeetingParticipantService meetingParticipantService;
     public MeetingService(MeetingRepository meetingRepository,
                           MeetingParticipantRepository participantRepository,
-                          UserWishlistRepository wishlistRepository) {
+                          UserWishlistRepository wishlistRepository, MeetingParticipantService meetingParticipantService) {
         this.meetingRepository = meetingRepository;
         this.participantRepository = participantRepository;
         this.wishlistRepository = wishlistRepository;
+        this.meetingParticipantService = meetingParticipantService;
     }
 
     /**
@@ -78,7 +81,10 @@ public class MeetingService {
         meeting.setStatus(Meeting.Status.RECRUITING);
 
         Meeting savedMeeting = meetingRepository.save(meeting);
-
+        // 자동승인 설정 초기화 (새로 추가되는 부분)
+        if (request.getAutoApprovalLimit() > 0) {
+            meetingParticipantService.initAutoApproval(savedMeeting.getId(), request.getAutoApprovalLimit());
+        }
         // 주최자 자동 참여 처리
         autoJoinOrganizer(savedMeeting, currentUser);
 

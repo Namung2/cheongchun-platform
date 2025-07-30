@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,26 +28,36 @@ public class MeetingParticipantService {
     private final MeetingParticipantRepository participantRepository;
     private final MeetingRepository meetingRepository;
 
+    private final Map<Long, Integer> autoApprovalLimits = new ConcurrentHashMap<>();
+    private final Map<Long, AtomicInteger> autoApprovalCounts = new ConcurrentHashMap<>();
+
     public MeetingParticipantService(MeetingParticipantRepository participantRepository,
                                      MeetingRepository meetingRepository) {
         this.participantRepository = participantRepository;
         this.meetingRepository = meetingRepository;
     }
 
+    // 모임 생성 시 자동승인 설정 저장
+    public void initAutoApproval(Long meetingId, Integer autoApprovalLimit) {
+        if (autoApprovalLimit != null && autoApprovalLimit > 0) {
+            autoApprovalLimits.put(meetingId, autoApprovalLimit);
+            autoApprovalCounts.put(meetingId, new AtomicInteger(0));
+        }
+    }
+
     /**
      * 모임 참여 신청
      */
+    // joinMeeting 메서드 - 자동승인 로직 직접 처리
     public MeetingParticipantDto.ParticipantResponse joinMeeting(Long meetingId,
                                                                  MeetingParticipantDto.JoinRequest request,
                                                                  User currentUser) {
-        // 모임 존재 여부 및 상태 확인
+        // 기존 검증 로직...
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new RuntimeException("모임을 찾을 수 없습니다"));
 
-        // 비즈니스 규칙 검증
         validateJoinRequest(meeting, currentUser);
 
-        // 중복 신청 확인
         if (participantRepository.existsByMeetingAndUser(meeting, currentUser)) {
             throw new RuntimeException("이미 신청한 모임입니다");
         }
@@ -53,18 +66,38 @@ public class MeetingParticipantService {
         MeetingParticipant participant = new MeetingParticipant();
         participant.setMeeting(meeting);
         participant.setUser(currentUser);
-        participant.setStatus(MeetingParticipant.Status.PENDING);
         participant.setApplicationMessage(request.getApplicationMessage());
+
+        // 자동승인 확인 및 직접 처리
+        if (isAutoApprovalEnabled(meeting)) {
+            // 자동승인 처리
+            participant.setStatus(MeetingParticipant.Status.APPROVED);
+            participant.setProcessedAt(LocalDateTime.now());
+
+            // 자동승인 카운트 증가
+            AtomicInteger count = autoApprovalCounts.get(meeting.getId());
+            if (count != null) {
+                count.incrementAndGet();
+            }
+        } else {
+            // 수동승인 대기
+            participant.setStatus(MeetingParticipant.Status.PENDING);
+        }
 
         MeetingParticipant savedParticipant = participantRepository.save(participant);
 
-        // 정원이 여유 있으면 자동 승인 (옵션)
-        if (isAutoApprovalEnabled(meeting)) {
-            approveApplication(savedParticipant.getId(), currentUser);
-            savedParticipant = participantRepository.findById(savedParticipant.getId()).get();
+        // 승인된 경우에만 참가자 수 업데이트
+        if (savedParticipant.getStatus() == MeetingParticipant.Status.APPROVED) {
+            updateMeetingParticipantCount(meetingId);
         }
 
         return convertToParticipantResponse(savedParticipant);
+    }
+
+    // 메모리 정리 (모임 삭제 시 호출)
+    public void cleanupAutoApprovalData(Long meetingId) {
+        autoApprovalLimits.remove(meetingId);
+        autoApprovalCounts.remove(meetingId);
     }
 
     /**
@@ -92,10 +125,10 @@ public class MeetingParticipantService {
             updateMeetingParticipantCount(meetingId);
         }
     }
-
     /**
      * 참여 신청 승인 (주최자용)
      */
+
     public MeetingParticipantDto.ParticipantResponse approveApplication(Long participantId, User currentUser) {
         MeetingParticipant participant = participantRepository.findById(participantId)
                 .orElseThrow(() -> new RuntimeException("참여 신청을 찾을 수 없습니다"));
@@ -294,11 +327,22 @@ public class MeetingParticipantService {
     /**
      * 자동 승인 여부 확인
      */
+    // 기존 isAutoApprovalEnabled 메서드를 설정값 기반으로 변경
     private boolean isAutoApprovalEnabled(Meeting meeting) {
-        // 소규모 모임이거나 무료 모임인 경우 자동 승인
-        return meeting.getMaxParticipants() != null && meeting.getMaxParticipants() <= 10 && meeting.getFee() == 0;
-    }
+        Long meetingId = meeting.getId();
+        Integer limit = autoApprovalLimits.get(meetingId);
 
+        if (limit == null || limit <= 0) {
+            return false;  // 자동승인 설정 안 함
+        }
+
+        AtomicInteger currentCount = autoApprovalCounts.get(meetingId);
+        if (currentCount == null) {
+            return false;
+        }
+
+        return currentCount.get() < limit;  // 한도 내에서만 자동승인
+    }
     /**
      * 모임 참가자 수 업데이트
      */

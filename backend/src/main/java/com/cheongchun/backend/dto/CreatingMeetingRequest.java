@@ -1,9 +1,11 @@
 package com.cheongchun.backend.dto;
 
 import com.cheongchun.backend.entity.Meeting;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -62,6 +64,11 @@ public class CreatingMeetingRequest {
 
     @Size(max = 1000, message = "모임 규칙은 1000자를 초과할 수 없습니다")
     private String meetingRules;
+
+    @JsonProperty("autoApprovalLimit")
+    @Min(value = 0, message = "자동승인 한도는 0 이상이어야 합니다")
+    @Max(value = 50, message = "자동승인 한도는 50 이하여야 합니다")
+    private Integer autoApprovalLimit = 0;
 
     @Data
     @NoArgsConstructor
