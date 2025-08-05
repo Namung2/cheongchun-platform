@@ -40,6 +40,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     runtimeOnly 'org.postgresql:postgresql' //데이터 베이스
+    implementation 'com.google.cloud.sql:postgres-socket-factory:1.18.0' // Cloud SQL Connector
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'

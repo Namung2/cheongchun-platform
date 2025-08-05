@@ -1,4 +1,4 @@
-// app/logo.js
+// app/login.js
 import { useEffect } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -17,12 +17,12 @@ const SlideOutToBottom = new Keyframe({
   to:   { transform: [{ translateY: 300 }] },
 });
 
-export default function Logo() {
+export default function login() {
   const router = useRouter();
 
   return (
     <View style={styles.container}>
-      <Image source={greenIcon} style={styles.logoImage} />
+      <Image source={greenIcon} style={styles.loginImage} />
 
       <Animated.View
         entering={SlideInFromBottom.duration(500)}
@@ -40,7 +40,7 @@ export default function Logo() {
         {/* 카카오 로그인 */}
         <TouchableOpacity
           style={[styles.button, styles.kakaoButton]}
-          onPress={() => router.push('/kakaoLogin')}
+          onPress={() => router.push('/oauth?provider=kakao')}
         >
           <Text style={styles.buttonText}>카카오 로그인</Text>
         </TouchableOpacity>
@@ -48,7 +48,7 @@ export default function Logo() {
         {/* Google 계정 로그인 */}
         <TouchableOpacity
           style={[styles.button, styles.googleButton]}
-          onPress={() => router.push('/googleLogin')}
+          onPress={() => router.push('/oauth?provider=google')}
         >
           <Text style={[styles.buttonText, styles.whiteText]}>
             Google 계정 로그인
@@ -57,8 +57,8 @@ export default function Logo() {
 
         {/* 회원 가입 */}
         <TouchableOpacity
-          style={[styles.button, styles.signUpButton]}
-          onPress={() => router.push('/signUp')}
+          style={[styles.button, styles.signupButton]}
+          onPress={() => router.push('/signup')}
         >
           <Text style={[styles.buttonText, styles.whiteText]}>
             회원 가입
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoImage: {
+  loginImage: {
     width: 350,
     height: 350,
     resizeMode: 'contain',
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   googleButton: {
     backgroundColor: '#4285F4',
   },
-  signUpButton: {
+  signupbutton: {
     backgroundColor: '#000',
   },
 });

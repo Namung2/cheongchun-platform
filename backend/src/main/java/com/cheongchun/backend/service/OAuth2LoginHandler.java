@@ -27,26 +27,29 @@ public class OAuth2LoginHandler {
                 CustomOAuth2User customUser = (CustomOAuth2User) principal;
                 String jwt = jwtUtil.generateTokenFromUsername(customUser.getUsername());
 
-                Map<String, Object> successData = new HashMap<>();
-                successData.put("success", true);
-                successData.put("token", jwt);
-                successData.put("user", Map.of(
-                        "id", customUser.getUserId(),
-                        "email", customUser.getEmail(),
-                        "name", customUser.getUserName(),
-                        "provider", customUser.getProviderType()
-                ));
-                successData.put("message", "소셜 로그인 성공");
-
-                response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write(objectMapper.writeValueAsString(successData));
+                // 모바일 앱용 성공 페이지로 리다이렉트 (토큰 포함)
+                String redirectUrl = String.format(
+                    "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-success?token=%s&userId=%s&email=%s&name=%s", 
+                    jwt,
+                    customUser.getUserId(),
+                    java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
+                    java.net.URLEncoder.encode(customUser.getUserName(), "UTF-8")
+                );
+                response.sendRedirect(redirectUrl);
+                
             } else {
-                sendErrorResponse(response, 500, "unsupported_principal_type", 
-                    "지원하지 않는 사용자 타입입니다", "Principal type: " + principal.getClass().getName());
+                // 실패 시에도 리다이렉트
+                String errorUrl = "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-error?code=unsupported_principal_type&message=" + 
+                                java.net.URLEncoder.encode("지원하지 않는 사용자 타입입니다", "UTF-8");
+                response.sendRedirect(errorUrl);
             }
         } catch (Exception e) {
-            sendErrorResponse(response, 400, "oauth2_processing_error", 
-                "OAuth2 로그인 처리 중 오류가 발생했습니다", e.getMessage());
+            // 오류 시에도 리다이렉트
+            String errorUrl = String.format(
+                "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-error?code=oauth2_processing_error&message=%s", 
+                java.net.URLEncoder.encode("OAuth2 로그인 처리 중 오류가 발생했습니다", "UTF-8")
+            );
+            response.sendRedirect(errorUrl);
         }
     }
 
