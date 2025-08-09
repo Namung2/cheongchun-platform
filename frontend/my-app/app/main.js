@@ -4,19 +4,24 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'rea
 import { useRouter } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 import apiService from '../services/ApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Main() {
   const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
   const [serverStatus, setServerStatus] = useState(null);
   const [meetings, setMeetings] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   // 인증되지 않은 사용자는 로그인 화면으로 리다이렉트
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/login');
-    }
+    // 토큰이 있으면 인증된 것으로 간주 (임시 수정)
+    const checkAuth = async () => {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!isAuthenticated && !token) {
+        router.replace('/login');
+      }
+    };
+    checkAuth();
   }, [isAuthenticated]);
 
   // 서버 상태 및 데이터 로드
@@ -41,7 +46,6 @@ export default function Main() {
         console.error('데이터 로드 실패:', error);
         setServerStatus('offline');
       } finally {
-        setLoading(false);
       }
     };
 
@@ -108,6 +112,31 @@ export default function Main() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🤖 AI 도우미</Text>
+        <Text style={styles.aiDescription}>
+          궁금한 것이 있으시면 AI 도우미에게 편하게 물어보세요. 
+          건강, 취미, 생활 정보 등 다양한 주제에 대해 도움을 드릴 수 있습니다.
+        </Text>
+        <TouchableOpacity 
+          style={styles.aiChatBtn} 
+          onPress={() => {
+            try {
+              console.log('AI 채팅 버튼 클릭됨');
+              router.push('/chat');
+            } catch (error) {
+              console.error('라우터 오류:', error);
+              // 폴백: 웹에서는 직접 이동
+              if (typeof window !== 'undefined') {
+                window.location.href = '/chat';
+              }
+            }
+          }}
+        >
+          <Text style={styles.aiChatBtnText}>💬 AI 도우미와 채팅하기</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>👤 사용자 정보</Text>
         <View style={styles.userInfo}>
           <Text style={styles.infoText}>이메일: {user?.email || 'N/A'}</Text>
@@ -153,13 +182,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#00C853',
-    padding: 20,
+    backgroundColor: '#2C3E50',
+    padding: 25,
     paddingTop: 60,
   },
   welcomeText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 10,
   },
@@ -184,21 +213,21 @@ const styles = StyleSheet.create({
     boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.2)',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+    marginBottom: 15,
+    color: '#2C3E50',
   },
   testBtn: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
+    backgroundColor: '#27AE60',
+    paddingVertical: 15,
+    paddingHorizontal: 25,
+    borderRadius: 12,
     alignItems: 'center',
   },
   testBtnText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '600',
   },
   userInfo: {
@@ -207,9 +236,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   infoText: {
-    fontSize: 14,
-    marginBottom: 5,
-    color: '#666',
+    fontSize: 18,
+    marginBottom: 8,
+    color: '#34495E',
+    fontWeight: '500',
   },
   meetingCard: {
     backgroundColor: '#f0f8ff',
@@ -228,16 +258,40 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   logoutBtn: {
-    backgroundColor: '#f44336',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
+    backgroundColor: '#E74C3C',
+    paddingVertical: 15,
+    paddingHorizontal: 25,
+    borderRadius: 12,
     alignItems: 'center',
   },
   logoutBtnText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '600',
+  },
+  aiDescription: {
+    fontSize: 18,
+    color: '#34495E',
+    marginBottom: 20,
+    lineHeight: 26,
+    fontWeight: '500',
+  },
+  aiChatBtn: {
+    backgroundColor: '#4A90E2',
+    paddingVertical: 20,
+    paddingHorizontal: 25,
+    borderRadius: 15,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  aiChatBtnText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   footer: {
     padding: 20,

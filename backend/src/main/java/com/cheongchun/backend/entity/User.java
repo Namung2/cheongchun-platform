@@ -70,6 +70,25 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // AI 맞춤 필드들 (비정규화로 검색 속도 향상)
+    @Column(name = "ai_age_group")
+    private String aiAgeGroup;
+    
+    @Column(name = "ai_health_profile", columnDefinition = "TEXT")
+    private String aiHealthProfile; // JSON 형태로 저장
+    
+    @Column(name = "ai_interests", columnDefinition = "TEXT")
+    private String aiInterests; // JSON 형태로 저장
+    
+    @Column(name = "ai_conversation_style")
+    private String aiConversationStyle = "formal";
+    
+    @Column(name = "ai_last_summary", columnDefinition = "TEXT")
+    private String aiLastSummary; // 최근 대화 요약
+    
+    @Column(name = "ai_total_conversations")
+    private Integer aiTotalConversations = 0;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<SocialAccount> socialAccounts;
 

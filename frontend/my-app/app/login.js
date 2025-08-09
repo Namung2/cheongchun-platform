@@ -64,6 +64,7 @@ export default function login() {
             회원 가입
           </Text>
         </TouchableOpacity>
+
       </Animated.View>
     </View>
   );
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   googleButton: {
     backgroundColor: '#4285F4',
   },
-  signupbutton: {
-    backgroundColor: '#000',
+  signupButton: {
+    backgroundColor: '#34495E',
   },
 });

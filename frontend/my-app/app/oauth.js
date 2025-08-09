@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,17 +9,33 @@ export default function OAuth() {
   const router = useRouter();
   const { provider } = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const getOAuthUrl = () => {
     const baseUrl = 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/oauth2/authorization';
     return `${baseUrl}/${provider}`;
   };
 
+  // 웹 환경에서는 바로 리다이렉트
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const oauthUrl = getOAuthUrl();
+      window.location.href = oauthUrl;
+      return;
+    }
+  }, [provider]);
+
   const handleNavigationStateChange = async (navState) => {
     const { url } = navState;
     
     // OAuth 성공 URL 감지 - 백엔드에서 리다이렉트하는 성공 페이지
     if (url.includes('/auth/oauth-success')) {
+      // 이미 처리 중이면 중복 실행 방지
+      if (isProcessing) {
+        return;
+      }
+      
+      setIsProcessing(true);
       setLoading(true);
       
       try {
@@ -42,19 +58,15 @@ export default function OAuth() {
             
             Alert.alert(
               '로그인 성공!', 
-              '로그인이 완료되었습니다. 확인을 누르면 메인 화면으로 이동합니다.', 
+              '로그인이 완료되었습니다.', 
               [{
                 text: '확인', 
                 onPress: () => {
-                  console.log('Alert 확인 버튼 클릭됨');
-                  // WebView를 닫고 앱으로 돌아가기
-                  router.dismiss();
-                  // 짧은 지연 후 메인으로 이동
-                  setTimeout(() => {
-                    router.replace('/main');
-                  }, 100);
+                  // WebView를 닫고 메인으로 바로 이동
+                  router.replace('/main');
                 }
-              }]
+              }],
+              { cancelable: false } // 뒤로가기 등으로 닫기 방지
             );
           } else {
             throw new Error(result.error || 'OAuth 처리 실패');
@@ -71,6 +83,7 @@ export default function OAuth() {
         ]);
       } finally {
         setLoading(false);
+        setIsProcessing(false);
       }
     }
   };
