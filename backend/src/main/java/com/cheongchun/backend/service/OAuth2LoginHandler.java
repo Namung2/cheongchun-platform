@@ -27,14 +27,29 @@ public class OAuth2LoginHandler {
                 CustomOAuth2User customUser = (CustomOAuth2User) principal;
                 String jwt = jwtUtil.generateTokenFromUsername(customUser.getUsername());
 
-                // 모바일 앱용 성공 페이지로 리다이렉트 (토큰 포함)
-                String redirectUrl = String.format(
-                    "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-success?token=%s&userId=%s&email=%s&name=%s", 
-                    jwt,
-                    customUser.getUserId(),
-                    java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
-                    java.net.URLEncoder.encode(customUser.getUserName(), "UTF-8")
-                );
+                // Provider별 리다이렉트 처리
+                String provider = customUser.getProviderType().toLowerCase();
+                String redirectUrl;
+                
+                if ("google".equals(provider)) {
+                    // Google: 딥링크로 앱 복귀
+                    redirectUrl = String.format(
+                        "myapp://auth-success?token=%s&userId=%s&email=%s&name=%s",
+                        jwt,
+                        customUser.getUserId(),
+                        java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
+                        java.net.URLEncoder.encode(customUser.getUserName(), "UTF-8")
+                    );
+                } else {
+                    // 카카오/네이버: 기존 WebView 방식
+                    redirectUrl = String.format(
+                        "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-success?token=%s&userId=%s&email=%s&name=%s", 
+                        jwt,
+                        customUser.getUserId(),
+                        java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
+                        java.net.URLEncoder.encode(customUser.getUserName(), "UTF-8")
+                    );
+                }
                 response.sendRedirect(redirectUrl);
                 
             } else {

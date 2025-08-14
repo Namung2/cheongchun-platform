@@ -72,27 +72,56 @@ public class AiUserService {
         log.info("사용자 AI 프로필 업데이트: userId={}", user.getId());
     }
     
-    // 대화 저장 및 분석
+    // 대화 저장 및 AI 요약 생성
     public Long saveConversation(AiConversationRequest request) {
         User user = userRepository.findById(request.getUserId())
             .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + request.getUserId()));
         
-        // 대화 엔티티 생성 (비정규화로 검색 최적화)
+        // GPT API 요약 생성을 위한 AI Core 서비스 호출
+        String summary = request.getConversationSummary() != null ? 
+            request.getConversationSummary() : "대화 요약을 생성 중입니다.";
+            
+        // 비정규화 데이터 계산
+        String mainTopicsStr = String.join(",", request.getMainTopics() != null ? request.getMainTopics() : Collections.emptyList());
+        String healthMentionsStr = String.join(",", request.getHealthMentions() != null ? request.getHealthMentions() : Collections.emptyList());
+        String concernsStr = String.join(",", request.getConcernsDiscussed() != null ? request.getConcernsDiscussed() : Collections.emptyList());
+        
+        // 검색 키워드 생성 (모든 텍스트 합침)
+        String searchKeywords = generateSearchKeywords(
+            request.getSessionTitle(), 
+            mainTopicsStr, 
+            healthMentionsStr, 
+            summary
+        );
+        
+        // 통계 정보 계산
+        int topicCount = request.getMainTopics() != null ? request.getMainTopics().size() : 0;
+        int healthKeywordCount = request.getHealthMentions() != null ? request.getHealthMentions().size() : 0;
+        boolean isHealthRelated = healthKeywordCount > 0 || (summary != null && containsHealthKeywords(summary));
+        
+        // 대화 엔티티 생성 (비정규화 데이터 포함)
         AiConversation conversation = AiConversation.builder()
             .user(user)
+            .userName(user.getName()) // 비정규화
+            .userAgeGroup(user.getAiAgeGroup()) // 비정규화
             .sessionTitle(request.getSessionTitle())
             .totalMessages(request.getTotalMessages())
             .durationMinutes(request.getDurationMinutes())
-            .messagesJson(request.getMessagesJson())
-            .mainTopics(String.join(",", request.getMainTopics() != null ? request.getMainTopics() : Arrays.asList()))
-            .healthMentions(String.join(",", request.getHealthMentions() != null ? request.getHealthMentions() : Arrays.asList()))
-            .concernsDiscussed(String.join(",", request.getConcernsDiscussed() != null ? request.getConcernsDiscussed() : Arrays.asList()))
-            .moodAnalysis(request.getMoodAnalysis())
-            .stressLevel(request.getStressLevel())
-            .conversationSummary(request.getConversationSummary())
+            .messagesJson(null) // 원본 메시지는 저장하지 않음
+            .mainTopics(mainTopicsStr)
+            .healthMentions(healthMentionsStr)
+            .concernsDiscussed(concernsStr)
+            .moodAnalysis(request.getMoodAnalysis() != null ? request.getMoodAnalysis() : "neutral")
+            .stressLevel(request.getStressLevel() != null ? request.getStressLevel() : 5)
+            .conversationSummary(summary)
+            .searchKeywords(searchKeywords) // 검색 최적화
+            .isHealthRelated(isHealthRelated) // 검색 최적화
+            .topicCount(topicCount) // 통계 정보
+            .healthKeywordCount(healthKeywordCount) // 통계 정보
+            .summaryLength(summary != null ? summary.length() : 0) // 통계 정보
             .build();
         
-        // JSON 필드 변환
+        // AI 생성 데이터를 JSON으로 변환
         try {
             if (request.getKeyInsights() != null) {
                 conversation.setKeyInsights(objectMapper.writeValueAsString(request.getKeyInsights()));
@@ -107,7 +136,8 @@ public class AiUserService {
         AiConversation saved = aiConversationRepository.save(conversation);
         
         // 사용자 프로필 업데이트 (캐시 역할)
-        user.setAiTotalConversations(user.getAiTotalConversations() + 1);
+        Integer currentCount = user.getAiTotalConversations();
+        user.setAiTotalConversations((currentCount != null ? currentCount : 0) + 1);
         user.setAiLastSummary(request.getConversationSummary());
         userRepository.save(user);
         
@@ -131,21 +161,21 @@ public class AiUserService {
         Double avgMessages = stats[1] != null ? ((Number) stats[1]).doubleValue() : 0.0;
         Double avgDuration = stats[2] != null ? ((Number) stats[2]).doubleValue() : 0.0;
         
-        // 주제 빈도 분석 (비정규화된 데이터 활용)
-        Map<String, Long> topicFrequency = recentConversations.stream()
+        // 비정규화 데이터로 빠른 통계 계산
+        List<String> topInterests = recentConversations.stream()
+            .filter(conv -> conv.getTopicCount() > 0)
             .flatMap(conv -> Arrays.stream(conv.getMainTopics().split(",")))
             .filter(topic -> !topic.trim().isEmpty())
-            .collect(Collectors.groupingBy(topic -> topic.trim(), Collectors.counting()));
-        
-        List<String> topInterests = topicFrequency.entrySet().stream()
+            .collect(Collectors.groupingBy(topic -> topic.trim(), Collectors.counting()))
+            .entrySet().stream()
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .limit(5)
             .map(Map.Entry::getKey)
             .collect(Collectors.toList());
         
-        // 건강 주제 빈도
+        // 건강 관련 대화만 필터링하여 건강 키워드 추출
         List<String> healthTopics = recentConversations.stream()
-            .filter(conv -> conv.getHealthMentions() != null && !conv.getHealthMentions().isEmpty())
+            .filter(conv -> conv.getIsHealthRelated() && conv.getHealthKeywordCount() > 0)
             .flatMap(conv -> Arrays.stream(conv.getHealthMentions().split(",")))
             .filter(topic -> !topic.trim().isEmpty())
             .collect(Collectors.groupingBy(topic -> topic.trim(), Collectors.counting()))
@@ -180,7 +210,7 @@ public class AiUserService {
             .build();
     }
     
-    // 채팅 히스토리 조회 (AI Core에서 사용)
+    // 채팅 히스토리 조회 (AI Core에서 사용) - 비정규화 데이터 활용
     public List<Map<String, Object>> getChatHistory(Long userId, int limit) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
@@ -194,16 +224,18 @@ public class AiUserService {
                 chatData.put("id", conv.getId());
                 chatData.put("title", conv.getSessionTitle());
                 chatData.put("summary", conv.getConversationSummary());
-                chatData.put("topics", Arrays.asList(conv.getMainTopics().split(",")));
+                chatData.put("userName", conv.getUserName()); // 비정규화 데이터
+                chatData.put("isHealthRelated", conv.getIsHealthRelated()); // 비정규화 데이터
+                chatData.put("topicCount", conv.getTopicCount()); // 비정규화 데이터
                 chatData.put("createdAt", conv.getCreatedAt());
                 return chatData;
             })
             .collect(Collectors.toList());
     }
     
-    // 건강 관련 요약
+    // 건강 관련 요약 (비정규화 컬럼 활용)
     public Map<String, Object> getHealthSummary(User user) {
-        List<AiConversation> healthConversations = aiConversationRepository.findHealthRelatedConversations(user);
+        List<AiConversation> healthConversations = aiConversationRepository.findByUserAndIsHealthRelatedTrueOrderByCreatedAtDesc(user);
         
         Map<String, Object> summary = new HashMap<>();
         summary.put("totalHealthChats", healthConversations.size());
@@ -217,8 +249,9 @@ public class AiUserService {
                 .collect(Collectors.toList());
             summary.put("recentHealthSummaries", recentSummaries);
             
-            // 주요 건강 관심사
+            // 주요 건강 관심사 (비정규화 데이터 활용)
             Set<String> healthConcerns = healthConversations.stream()
+                .filter(conv -> conv.getHealthKeywordCount() > 0) // 비정규화 필터
                 .flatMap(conv -> Arrays.stream(conv.getHealthMentions().split(",")))
                 .filter(concern -> !concern.trim().isEmpty())
                 .collect(Collectors.toSet());
@@ -226,5 +259,149 @@ public class AiUserService {
         }
         
         return summary;
+    }
+    
+    // 대화 삭제
+    public void deleteConversation(User user, Long conversationId) {
+        AiConversation conversation = aiConversationRepository.findById(conversationId)
+            .orElseThrow(() -> new RuntimeException("대화를 찾을 수 없습니다: " + conversationId));
+        
+        // 본인의 대화인지 확인
+        if (!conversation.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("본인의 대화만 삭제할 수 있습니다.");
+        }
+        
+        aiConversationRepository.delete(conversation);
+        
+        // 사용자 통계 업데이트
+        if (user.getAiTotalConversations() > 0) {
+            user.setAiTotalConversations(user.getAiTotalConversations() - 1);
+            userRepository.save(user);
+        }
+        
+        log.info("대화 삭제 완료: conversationId={}, userId={}", conversationId, user.getId());
+    }
+    
+    // 사용자의 모든 대화 기록 조회 (페이징 처리)
+    public List<Map<String, Object>> getUserConversations(User user, int page, int size) {
+        List<AiConversation> conversations = aiConversationRepository.findByUserOrderByCreatedAtDesc(user);
+        
+        List<AiConversation> pagedConversations = conversations.stream()
+            .skip((long) page * size)
+            .limit(size)
+            .collect(Collectors.toList());
+            
+        return convertToConversationDataList(pagedConversations);
+    }
+    
+    // ===== 비정규화 데이터 처리 헬퍼 메서드들 =====
+    
+    // 검색 키워드 생성 (모든 텍스트를 공백으로 구분하여 합침)
+    private String generateSearchKeywords(String title, String topics, String healthMentions, String summary) {
+        StringBuilder keywords = new StringBuilder();
+        
+        if (title != null && !title.trim().isEmpty()) {
+            keywords.append(title.trim()).append(" ");
+        }
+        if (topics != null && !topics.trim().isEmpty()) {
+            keywords.append(topics.replace(",", " ")).append(" ");
+        }
+        if (healthMentions != null && !healthMentions.trim().isEmpty()) {
+            keywords.append(healthMentions.replace(",", " ")).append(" ");
+        }
+        if (summary != null && !summary.trim().isEmpty()) {
+            // 요약문에서 핵심 키워드만 추출 (첫 100자)
+            String summaryKeywords = summary.length() > 100 ? summary.substring(0, 100) : summary;
+            keywords.append(summaryKeywords.trim());
+        }
+        
+        return keywords.toString().trim().toLowerCase(); // 소문자로 통일
+    }
+    
+    // 건강 관련 키워드 포함 여부 검사
+    private boolean containsHealthKeywords(String text) {
+        if (text == null || text.trim().isEmpty()) return false;
+        
+        String[] healthKeywords = {
+            "건강", "병원", "의사", "약", "치료", "진료", "검사",
+            "혈압", "당뇨", "관절", "심장", "뇌", "간", "신장",
+            "운동", "식단", "영양", "수면", "스트레스",
+            "아프", "통증", "피로", "어지러"
+        };
+        
+        String lowerText = text.toLowerCase();
+        for (String keyword : healthKeywords) {
+            if (lowerText.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // ===== 비정규화 컬럼 활용 빠른 검색 메서드들 =====
+    
+    // 키워드로 대화 검색 (단일 테이블, 단일 LIKE 검색)
+    public List<Map<String, Object>> searchConversations(User user, String keyword) {
+        List<AiConversation> conversations = aiConversationRepository.findByUserAndSearchKeywords(user, keyword.toLowerCase());
+        
+        return convertToConversationDataList(conversations);
+    }
+    
+    // 건강 관련 대화만 조회 (boolean 컬럼 활용)
+    public List<Map<String, Object>> getHealthConversations(User user) {
+        List<AiConversation> conversations = aiConversationRepository.findByUserAndIsHealthRelatedTrueOrderByCreatedAtDesc(user);
+        
+        return convertToConversationDataList(conversations);
+    }
+    
+    // 스트레스 레벨별 대화 조회 (비정규화 최적화)
+    public List<Map<String, Object>> getHighStressConversations(User user, int minStressLevel) {
+        List<AiConversation> conversations = aiConversationRepository.findByUserAndStressLevelGreaterThanEqualOrderByCreatedAtDesc(user, minStressLevel);
+        return convertToConversationDataList(conversations);
+    }
+    
+    // 감정 상태별 대화 조회 (비정규화 최적화)
+    public List<Map<String, Object>> getConversationsByMood(User user, String mood) {
+        List<AiConversation> conversations = aiConversationRepository.findByUserAndMoodAnalysisOrderByCreatedAtDesc(user, mood);
+        return convertToConversationDataList(conversations);
+    }
+    
+    // 대화 데이터 변환 공통 메서드
+    private List<Map<String, Object>> convertToConversationDataList(List<AiConversation> conversations) {
+        return conversations.stream()
+            .map(conv -> {
+                Map<String, Object> conversationData = new HashMap<>();
+                conversationData.put("id", conv.getId());
+                conversationData.put("title", conv.getSessionTitle());
+                conversationData.put("summary", conv.getConversationSummary());
+                conversationData.put("userName", conv.getUserName()); // 비정규화 데이터
+                conversationData.put("userAgeGroup", conv.getUserAgeGroup()); // 비정규화 데이터
+                conversationData.put("topics", Arrays.asList(conv.getMainTopics().split(",")));
+                conversationData.put("healthMentions", Arrays.asList(conv.getHealthMentions().split(",")));
+                conversationData.put("moodAnalysis", conv.getMoodAnalysis());
+                conversationData.put("stressLevel", conv.getStressLevel());
+                conversationData.put("totalMessages", conv.getTotalMessages());
+                conversationData.put("durationMinutes", conv.getDurationMinutes());
+                conversationData.put("isHealthRelated", conv.getIsHealthRelated()); // 비정규화 데이터
+                conversationData.put("topicCount", conv.getTopicCount()); // 비정규화 데이터
+                conversationData.put("healthKeywordCount", conv.getHealthKeywordCount()); // 비정규화 데이터
+                conversationData.put("summaryLength", conv.getSummaryLength()); // 비정규화 데이터
+                conversationData.put("createdAt", conv.getCreatedAt());
+                
+                // JSON 필드 파싱
+                try {
+                    if (conv.getKeyInsights() != null) {
+                        conversationData.put("keyInsights", objectMapper.readValue(conv.getKeyInsights(), List.class));
+                    }
+                    if (conv.getAiRecommendations() != null) {
+                        conversationData.put("aiRecommendations", objectMapper.readValue(conv.getAiRecommendations(), List.class));
+                    }
+                } catch (JsonProcessingException e) {
+                    log.warn("JSON 파싱 실패: {}", e.getMessage());
+                }
+                
+                return conversationData;
+            })
+            .collect(Collectors.toList());
     }
 }

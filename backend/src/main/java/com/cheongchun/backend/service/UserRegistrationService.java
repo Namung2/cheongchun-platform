@@ -41,27 +41,39 @@ public class UserRegistrationService {
         SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
         
         User user = createUser(oAuth2UserInfo, User.ProviderType.valueOf(registrationId.toUpperCase()));
-        User savedUser = userRepository.save(user);
         
-        createSocialAccount(savedUser, provider, oAuth2UserInfo);
-        
-        return savedUser;
+        try {
+            User savedUser = userRepository.save(user);
+            createSocialAccount(savedUser, provider, oAuth2UserInfo);
+            return savedUser;
+        } catch (DataIntegrityViolationException e) {
+            // 최후의 안전장치: 중복 키 에러 시 기존 사용자 반환
+            Optional<User> fallbackUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+            if (fallbackUser.isPresent()) {
+                return fallbackUser.get();
+            }
+            throw e;
+        }
     }
 
     public User registerGoogleUser(String email, String name, String googleId) {
-        // 안전장치: try-catch로 중복 키 에러 처리
+        // 먼저 기존 사용자 확인
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent()) {
+            return existingUser.get();
+        }
+        
+        // 새 사용자 생성 시도
+        User user = createGoogleUser(email, name, googleId);
         try {
-            User user = createGoogleUser(email, name, googleId);
             User savedUser = userRepository.save(user);
-            
             createGoogleSocialAccount(savedUser, email, name, googleId);
-            
             return savedUser;
         } catch (DataIntegrityViolationException e) {
-            // 중복 키 에러 발생 시 기존 사용자 반환
-            Optional<User> existingUser = userRepository.findByEmail(email);
-            if (existingUser.isPresent()) {
-                return existingUser.get();
+            // 최후의 안전장치: 중복 키 에러 시 기존 사용자 반환
+            Optional<User> fallbackUser = userRepository.findByEmail(email);
+            if (fallbackUser.isPresent()) {
+                return fallbackUser.get();
             }
             throw e;
         }
