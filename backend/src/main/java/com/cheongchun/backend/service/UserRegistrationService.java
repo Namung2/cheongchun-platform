@@ -29,7 +29,11 @@ public class UserRegistrationService {
     }
 
     public User registerNewUser(String registrationId, OAuth2UserInfo oAuth2UserInfo) {
-        // CustomOAuth2UserService에서 이미 중복 검사를 처리하므로 여기서는 제거
+        // 안전장치: 한 번 더 이메일 중복 확인
+        Optional<User> existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+        if (existingUser.isPresent()) {
+            return existingUser.get();
+        }
         
         SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
         
