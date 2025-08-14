@@ -5,6 +5,7 @@ import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.repository.SocialAccountRepository;
 import com.cheongchun.backend.repository.UserRepository;
 import com.cheongchun.backend.security.OAuth2UserInfo;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.stereotype.Service;
@@ -39,13 +40,11 @@ public class UserRegistrationService {
             createSocialAccount(savedUser, provider, oAuth2UserInfo);
             
             return savedUser;
-        } catch (Exception e) {
+        } catch (DataIntegrityViolationException e) {
             // 중복 키 에러 발생 시 기존 사용자 반환
-            if (e.getMessage().contains("duplicate key") || e.getMessage().contains("uk6dotkott2kjsp8vw4d0m25fb7")) {
-                Optional<User> existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
-                if (existingUser.isPresent()) {
-                    return existingUser.get();
-                }
+            Optional<User> existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+            if (existingUser.isPresent()) {
+                return existingUser.get();
             }
             throw e;
         }
@@ -60,13 +59,11 @@ public class UserRegistrationService {
             createGoogleSocialAccount(savedUser, email, name, googleId);
             
             return savedUser;
-        } catch (Exception e) {
+        } catch (DataIntegrityViolationException e) {
             // 중복 키 에러 발생 시 기존 사용자 반환
-            if (e.getMessage().contains("duplicate key") || e.getMessage().contains("uk6dotkott2kjsp8vw4d0m25fb7")) {
-                Optional<User> existingUser = userRepository.findByEmail(email);
-                if (existingUser.isPresent()) {
-                    return existingUser.get();
-                }
+            Optional<User> existingUser = userRepository.findByEmail(email);
+            if (existingUser.isPresent()) {
+                return existingUser.get();
             }
             throw e;
         }
