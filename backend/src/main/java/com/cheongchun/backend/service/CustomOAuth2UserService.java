@@ -3,6 +3,7 @@ package com.cheongchun.backend.service;
 import com.cheongchun.backend.entity.SocialAccount;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.repository.SocialAccountRepository;
+import com.cheongchun.backend.repository.UserRepository;
 import com.cheongchun.backend.security.CustomOAuth2User;
 import com.cheongchun.backend.security.OAuth2UserInfo;
 import com.cheongchun.backend.security.OAuth2UserInfoFactory;
@@ -22,11 +23,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final SocialAccountRepository socialAccountRepository;
     private final UserRegistrationService userRegistrationService;
+    private final UserRepository userRepository;
 
     public CustomOAuth2UserService(SocialAccountRepository socialAccountRepository,
-                                 UserRegistrationService userRegistrationService) {
+                                 UserRegistrationService userRegistrationService,
+                                 UserRepository userRepository) {
         this.socialAccountRepository = socialAccountRepository;
         this.userRegistrationService = userRegistrationService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -65,10 +69,22 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         
         User user;
         if(socialAccountOptional.isPresent()) {
+            // 기존 소셜 계정으로 로그인
             user = socialAccountOptional.get().getUser();
             user = userRegistrationService.updateExistingUser(user, oAuth2UserInfo);
         } else {
-            user = userRegistrationService.registerNewUser(registrationId, oAuth2UserInfo);
+            // 이메일로 기존 사용자 확인
+            Optional<User> existingUserByEmail = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+            if (existingUserByEmail.isPresent()) {
+                // 기존 사용자가 있으면 소셜 계정만 추가
+                user = existingUserByEmail.get();
+                user = userRegistrationService.updateExistingUser(user, oAuth2UserInfo);
+                // 새로운 소셜 계정 연결
+                createSocialAccount(user, provider, oAuth2UserInfo);
+            } else {
+                // 완전히 새로운 사용자 등록
+                user = userRegistrationService.registerNewUser(registrationId, oAuth2UserInfo);
+            }
         }
 
         return new CustomOAuth2User(
@@ -83,5 +99,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     public User createGoogleUser(String email, String name, String googleId) {
         return userRegistrationService.registerGoogleUser(email, name, googleId);
+    }
+    
+    private void createSocialAccount(User user, SocialAccount.Provider provider, OAuth2UserInfo oAuth2UserInfo) {
+        SocialAccount socialAccount = new SocialAccount();
+        socialAccount.setUser(user);
+        socialAccount.setProvider(provider);
+        socialAccount.setProviderId(oAuth2UserInfo.getId());
+        socialAccount.setProviderEmail(oAuth2UserInfo.getEmail());
+        socialAccount.setProviderName(oAuth2UserInfo.getName());
+        socialAccount.setProfileImageUrl(oAuth2UserInfo.getImageUrl());
+        
+        socialAccountRepository.save(socialAccount);
     }
 }

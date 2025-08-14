@@ -29,7 +29,7 @@ public class UserRegistrationService {
     }
 
     public User registerNewUser(String registrationId, OAuth2UserInfo oAuth2UserInfo) {
-        validateEmailNotExists(oAuth2UserInfo.getEmail());
+        // CustomOAuth2UserService에서 이미 중복 검사를 처리하므로 여기서는 제거
         
         SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
         
@@ -42,7 +42,7 @@ public class UserRegistrationService {
     }
 
     public User registerGoogleUser(String email, String name, String googleId) {
-        validateEmailNotExists(email);
+        // CustomOAuth2UserService에서 이미 중복 검사를 처리하므로 여기서는 제거
         
         User user = createGoogleUser(email, name, googleId);
         User savedUser = userRepository.save(user);
@@ -61,6 +61,8 @@ public class UserRegistrationService {
     private void validateEmailNotExists(String email) {
         Optional<User> existingUserByEmail = userRepository.findByEmail(email);
         if (existingUserByEmail.isPresent()) {
+            // 구글 로그인의 경우 기존 계정이 있으면 예외 발생하지 않고 그대로 사용
+            // 다른 소셜 로그인도 동일하게 처리할 수 있도록 개선 필요
             OAuth2Error oauth2Error = new OAuth2Error(
                 "email_already_exists",
                 "이미 가입된 계정이 존재합니다. 기존 로그인 방법을 사용해주세요.",
