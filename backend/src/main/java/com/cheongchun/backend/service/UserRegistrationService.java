@@ -30,24 +30,22 @@ public class UserRegistrationService {
     }
 
     public User registerNewUser(String registrationId, OAuth2UserInfo oAuth2UserInfo) {
-        // 안전장치: try-catch로 중복 키 에러 처리
-        try {
-            SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
-            
-            User user = createUser(oAuth2UserInfo, User.ProviderType.valueOf(registrationId.toUpperCase()));
-            User savedUser = userRepository.save(user);
-            
-            createSocialAccount(savedUser, provider, oAuth2UserInfo);
-            
-            return savedUser;
-        } catch (DataIntegrityViolationException e) {
-            // 중복 키 에러 발생 시 기존 사용자 반환
-            Optional<User> existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
-            if (existingUser.isPresent()) {
-                return existingUser.get();
-            }
-            throw e;
+        // 최종 안전장치: 다시 한 번 확인 후 생성
+        Optional<User> existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+        if (existingUser.isPresent()) {
+            // 이미 존재하는 사용자면 반환
+            return existingUser.get();
         }
+        
+        // 완전히 새로운 사용자만 생성
+        SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
+        
+        User user = createUser(oAuth2UserInfo, User.ProviderType.valueOf(registrationId.toUpperCase()));
+        User savedUser = userRepository.save(user);
+        
+        createSocialAccount(savedUser, provider, oAuth2UserInfo);
+        
+        return savedUser;
     }
 
     public User registerGoogleUser(String email, String name, String googleId) {

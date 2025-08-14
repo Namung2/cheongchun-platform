@@ -65,27 +65,43 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
-        Optional<SocialAccount> socialAccountOptional = socialAccountRepository.findByProviderAndProviderId(provider, oAuth2UserInfo.getId());
         
-        User user;
+        // 1. 먼저 기존 소셜 계정 확인
+        Optional<SocialAccount> socialAccountOptional = socialAccountRepository.findByProviderAndProviderId(provider, oAuth2UserInfo.getId());
         if(socialAccountOptional.isPresent()) {
             // 기존 소셜 계정으로 로그인
-            user = socialAccountOptional.get().getUser();
+            User user = socialAccountOptional.get().getUser();
             user = userRegistrationService.updateExistingUser(user, oAuth2UserInfo);
-        } else {
-            // 이메일로 기존 사용자 확인
-            Optional<User> existingUserByEmail = userRepository.findByEmail(oAuth2UserInfo.getEmail());
-            if (existingUserByEmail.isPresent()) {
-                // 기존 사용자가 있으면 소셜 계정만 추가
-                user = existingUserByEmail.get();
-                user = userRegistrationService.updateExistingUser(user, oAuth2UserInfo);
-                // 새로운 소셜 계정 연결
-                createSocialAccount(user, provider, oAuth2UserInfo);
-            } else {
-                // 완전히 새로운 사용자 등록
-                user = userRegistrationService.registerNewUser(registrationId, oAuth2UserInfo);
-            }
+            return new CustomOAuth2User(
+                oAuth2User, 
+                user.getUsername(), 
+                user.getId(), 
+                user.getEmail(), 
+                user.getName(), 
+                user.getProviderType().name()
+            );
         }
+        
+        // 2. 이메일로 기존 사용자 확인
+        Optional<User> existingUserByEmail = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+        if (existingUserByEmail.isPresent()) {
+            // 기존 사용자가 있으면 소셜 계정만 추가
+            User user = existingUserByEmail.get();
+            user = userRegistrationService.updateExistingUser(user, oAuth2UserInfo);
+            // 새로운 소셜 계정 연결
+            createSocialAccount(user, provider, oAuth2UserInfo);
+            return new CustomOAuth2User(
+                oAuth2User, 
+                user.getUsername(), 
+                user.getId(), 
+                user.getEmail(), 
+                user.getName(), 
+                user.getProviderType().name()
+            );
+        }
+        
+        // 3. 완전히 새로운 사용자만 등록
+        User user = userRegistrationService.registerNewUser(registrationId, oAuth2UserInfo);
 
         return new CustomOAuth2User(
             oAuth2User, 
