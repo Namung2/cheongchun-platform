@@ -29,31 +29,47 @@ public class UserRegistrationService {
     }
 
     public User registerNewUser(String registrationId, OAuth2UserInfo oAuth2UserInfo) {
-        // 안전장치: 한 번 더 이메일 중복 확인
-        Optional<User> existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
-        if (existingUser.isPresent()) {
-            return existingUser.get();
+        // 안전장치: try-catch로 중복 키 에러 처리
+        try {
+            SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
+            
+            User user = createUser(oAuth2UserInfo, User.ProviderType.valueOf(registrationId.toUpperCase()));
+            User savedUser = userRepository.save(user);
+            
+            createSocialAccount(savedUser, provider, oAuth2UserInfo);
+            
+            return savedUser;
+        } catch (Exception e) {
+            // 중복 키 에러 발생 시 기존 사용자 반환
+            if (e.getMessage().contains("duplicate key") || e.getMessage().contains("uk6dotkott2kjsp8vw4d0m25fb7")) {
+                Optional<User> existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+                if (existingUser.isPresent()) {
+                    return existingUser.get();
+                }
+            }
+            throw e;
         }
-        
-        SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
-        
-        User user = createUser(oAuth2UserInfo, User.ProviderType.valueOf(registrationId.toUpperCase()));
-        User savedUser = userRepository.save(user);
-        
-        createSocialAccount(savedUser, provider, oAuth2UserInfo);
-        
-        return savedUser;
     }
 
     public User registerGoogleUser(String email, String name, String googleId) {
-        // CustomOAuth2UserService에서 이미 중복 검사를 처리하므로 여기서는 제거
-        
-        User user = createGoogleUser(email, name, googleId);
-        User savedUser = userRepository.save(user);
-        
-        createGoogleSocialAccount(savedUser, email, name, googleId);
-        
-        return savedUser;
+        // 안전장치: try-catch로 중복 키 에러 처리
+        try {
+            User user = createGoogleUser(email, name, googleId);
+            User savedUser = userRepository.save(user);
+            
+            createGoogleSocialAccount(savedUser, email, name, googleId);
+            
+            return savedUser;
+        } catch (Exception e) {
+            // 중복 키 에러 발생 시 기존 사용자 반환
+            if (e.getMessage().contains("duplicate key") || e.getMessage().contains("uk6dotkott2kjsp8vw4d0m25fb7")) {
+                Optional<User> existingUser = userRepository.findByEmail(email);
+                if (existingUser.isPresent()) {
+                    return existingUser.get();
+                }
+            }
+            throw e;
+        }
     }
 
     public User updateExistingUser(User existingUser, OAuth2UserInfo oAuth2UserInfo) {
