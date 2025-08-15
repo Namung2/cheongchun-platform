@@ -8,6 +8,7 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.filter.CharacterEncodingFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +28,7 @@ public class WebConfig implements WebMvcConfigurer {
         bean.setOrder(0); // 최우선 순위
         return bean;
     }
+
 
     @Override
     public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
@@ -53,4 +55,5 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(false)  // 개발용 - credentials 비활성화
                 .maxAge(3600);
     }
+
 }

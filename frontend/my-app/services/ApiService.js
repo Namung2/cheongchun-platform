@@ -83,7 +83,24 @@ class ApiService {
 
       clearTimeout(timeoutId);
 
-      const data = await response.json();
+      // 응답이 비어있는지 확인
+      const responseText = await response.text();
+      let data;
+      
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          throw new Error('잘못된 JSON 응답');
+        }
+      } else {
+        // 빈 응답인 경우
+        if (response.ok) {
+          data = null;
+        } else {
+          throw new Error(`서버 오류: ${response.status}`);
+        }
+      }
 
       // 토큰 만료 시 자동 갱신 시도
       if (response.status === 401 && data.error?.code === 'TOKEN_EXPIRED') {
@@ -94,7 +111,13 @@ class ApiService {
           config.headers['Authorization'] = `Bearer ${newToken}`;
           
           const retryResponse = await fetch(`${this.baseURL}${endpoint}`, config);
-          return await retryResponse.json();
+          const retryText = await retryResponse.text();
+          
+          if (retryText) {
+            return JSON.parse(retryText);
+          } else {
+            return retryResponse.ok ? null : { error: `서버 오류: ${retryResponse.status}` };
+          }
         } else {
           // 리프레시 실패 시 로그아웃 처리
           await this.clearTokens();
@@ -263,6 +286,44 @@ class ApiService {
   // 소셜 로그인 URL 생성
   getSocialLoginUrl(provider) {
     return `https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/oauth2/authorization/${provider}`;
+  }
+
+  // ===== AI 채팅 관련 API =====
+
+  // 대화 저장
+  async saveConversation(conversationData) {
+    return await this.request('/ai/conversation', {
+      method: 'POST',
+      body: JSON.stringify(conversationData),
+    });
+  }
+
+  // 채팅 히스토리 조회
+  async getChatHistory(userId, limit = 10) {
+    return await this.request(`/ai/history/${userId}?limit=${limit}`);
+  }
+
+  // AI 사용자 인사이트 조회
+  async getUserInsights(userId) {
+    return await this.request(`/ai/insights/${userId}`);
+  }
+
+  // AI 프로필 조회
+  async getAiProfile() {
+    return await this.request('/ai/profile');
+  }
+
+  // AI 프로필 업데이트
+  async updateAiProfile(profileData) {
+    return await this.request('/ai/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  // 건강 요약 조회
+  async getHealthSummary() {
+    return await this.request('/ai/health-summary');
   }
 
   // ===== 헬스체크 =====

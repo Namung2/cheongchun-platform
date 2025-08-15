@@ -58,6 +58,23 @@ class ChatResponse(BaseModel):
     session_id: str
     timestamp: datetime
 
+class ConversationSummaryRequest(BaseModel):
+    conversation_text: str
+    user_id: int
+    session_title: str
+    total_messages: int
+    duration_minutes: int
+    topics: Optional[List[str]] = None
+
+class ConversationSummaryResponse(BaseModel):
+    conversation_summary: str
+    key_insights: List[str]
+    ai_recommendations: List[str]
+    mood_analysis: str
+    stress_level: int
+    main_topics: List[str]
+    health_mentions: List[str]
+
 @app.get("/")
 async def root():
     return {"message": "AI Core - Senior Chatbot Service"}
@@ -138,6 +155,25 @@ async def chat_endpoint(request: ChatRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail="채팅 처리 중 오류가 발생했습니다.")
+
+# 대화 요약 생성 API
+@app.post("/conversation/summary", response_model=ConversationSummaryResponse)
+async def generate_conversation_summary(request: ConversationSummaryRequest):
+    """대화 요약 및 인사이트 생성"""
+    try:
+        # GPT를 이용한 대화 요약 생성
+        summary_data = await openai_service.generate_conversation_summary(
+            request.conversation_text, 
+            request.topics
+        )
+        
+        return ConversationSummaryResponse(**summary_data)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"대화 요약 생성 중 오류가 발생했습니다: {str(e)}"
+        )
 
 # JWT 토큰 검증 (Spring Boot 백엔드와 연동)
 async def verify_jwt_token(token: str) -> dict:

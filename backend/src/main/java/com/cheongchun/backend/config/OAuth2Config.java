@@ -2,7 +2,9 @@ package com.cheongchun.backend.config;
 
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.security.CustomOAuth2User;
+import com.cheongchun.backend.security.OAuth2UserInfo;
 import com.cheongchun.backend.service.CustomOAuth2UserService;
+import com.cheongchun.backend.service.OAuth2UserStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,13 +18,16 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 public class OAuth2Config {
 
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2UserStrategy oAuth2UserStrategy;
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
 
     public OAuth2Config(CustomOAuth2UserService customOAuth2UserService,
+                       OAuth2UserStrategy oAuth2UserStrategy,
                        AuthenticationSuccessHandler successHandler,
                        AuthenticationFailureHandler failureHandler) {
         this.customOAuth2UserService = customOAuth2UserService;
+        this.oAuth2UserStrategy = oAuth2UserStrategy;
         this.successHandler = successHandler;
         this.failureHandler = failureHandler;
     }
@@ -47,7 +52,25 @@ public class OAuth2Config {
                 String name = oidcUser.getFullName();
                 String googleId = oidcUser.getSubject();
                 
-                User user = customOAuth2UserService.createGoogleUser(email, name, googleId);
+                // OAuth2UserInfo 생성 (Map 기반)
+                java.util.Map<String, Object> attributes = new java.util.HashMap<>();
+                attributes.put("sub", googleId);
+                attributes.put("name", name);
+                attributes.put("email", email);
+                attributes.put("picture", oidcUser.getAttribute("picture"));
+                
+                OAuth2UserInfo googleUserInfo = new OAuth2UserInfo(attributes) {
+                    @Override
+                    public String getId() { return googleId; }
+                    @Override
+                    public String getName() { return name; }
+                    @Override
+                    public String getEmail() { return email; }
+                    @Override
+                    public String getImageUrl() { return (String) attributes.get("picture"); }
+                };
+                
+                User user = oAuth2UserStrategy.processOAuth2User("google", googleUserInfo);
                 
                 return new CustomOAuth2User(
                     oidcUser,

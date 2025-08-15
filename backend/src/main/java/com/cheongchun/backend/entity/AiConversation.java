@@ -27,13 +27,22 @@ public class AiConversation {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
     
+    // === 사용자 정보 비정규화 (JOIN 제거) ===
+    @Column(name = "user_name", length = 100)
+    private String userName;
+    
+    @Column(name = "user_age_group", length = 20)
+    private String userAgeGroup;
+    
     // 대화 기본 정보 (비정규화로 빠른 조회)
     @Column(name = "session_title")
     private String sessionTitle;
     
+    @Builder.Default
     @Column(name = "total_messages")
     private Integer totalMessages = 0;
     
+    @Builder.Default
     @Column(name = "duration_minutes")
     private Integer durationMinutes = 0;
     
@@ -65,7 +74,28 @@ public class AiConversation {
     private String keyInsights; // JSON 배열
     
     @Column(name = "ai_recommendations", columnDefinition = "TEXT")
-    private String aiRecommendations; // JSON 배열
+    private String aiRecommendations;
+    
+    // === 검색 최적화 컬럼 ===
+    @Column(name = "search_keywords", columnDefinition = "TEXT")
+    private String searchKeywords; // 모든 검색 키워드 합침 (제목+주제+건강+요약)
+    
+    @Builder.Default
+    @Column(name = "is_health_related")
+    private Boolean isHealthRelated = false; // 건강 관련 대화 여부
+    
+    // === 통계 정보 사전 계산 ===
+    @Builder.Default
+    @Column(name = "topic_count")
+    private Integer topicCount = 0; // 주제 개수
+    
+    @Builder.Default
+    @Column(name = "health_keyword_count")  
+    private Integer healthKeywordCount = 0; // 건강 키워드 개수
+    
+    @Builder.Default
+    @Column(name = "summary_length")
+    private Integer summaryLength = 0; // 요약문 길이 (정렬용)
     
     // 시간 정보
     @Column(name = "created_at")

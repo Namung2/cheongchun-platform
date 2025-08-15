@@ -4,28 +4,27 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'rea
 import { useRouter } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 import apiService from '../services/ApiService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Main() {
   const router = useRouter();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, loading } = useAuth();
   const [serverStatus, setServerStatus] = useState(null);
   const [meetings, setMeetings] = useState([]);
 
-  // 인증되지 않은 사용자는 로그인 화면으로 리다이렉트
-  useEffect(() => {
-    // 토큰이 있으면 인증된 것으로 간주 (임시 수정)
-    const checkAuth = async () => {
-      const token = await AsyncStorage.getItem('accessToken');
-      if (!isAuthenticated && !token) {
-        router.replace('/login');
-      }
-    };
-    checkAuth();
-  }, [isAuthenticated]);
 
-  // 서버 상태 및 데이터 로드
+  // 인증 상태에 따른 화면 처리 및 데이터 로드
   useEffect(() => {
+    // 로딩 중일 때는 아무것도 하지 않음
+    if (loading) {
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      router.replace('/login');
+      return;
+    }
+
+    // 인증된 사용자 데이터 로드
     const loadData = async () => {
       try {
         // 서버 상태 확인
@@ -45,14 +44,11 @@ export default function Main() {
       } catch (error) {
         console.error('데이터 로드 실패:', error);
         setServerStatus('offline');
-      } finally {
       }
     };
 
-    if (isAuthenticated) {
-      loadData();
-    }
-  }, [isAuthenticated]);
+    loadData();
+  }, [isAuthenticated, loading]);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -119,20 +115,30 @@ export default function Main() {
         </Text>
         <TouchableOpacity 
           style={styles.aiChatBtn} 
-          onPress={() => {
-            try {
-              console.log('AI 채팅 버튼 클릭됨');
-              router.push('/chat');
-            } catch (error) {
-              console.error('라우터 오류:', error);
-              // 폴백: 웹에서는 직접 이동
-              if (typeof window !== 'undefined') {
-                window.location.href = '/chat';
-              }
-            }
-          }}
+          onPress={() => router.push('/chat')}
         >
           <Text style={styles.aiChatBtnText}>💬 AI 도우미와 채팅하기</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.aiChatBtn, styles.testBtn]} 
+          onPress={() => router.push('/test')}
+        >
+          <Text style={styles.aiChatBtnText}>🔧 시스템 테스트</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>👥 모임 관리</Text>
+        <Text style={styles.aiDescription}>
+          새로운 모임을 만들거나 기존 모임에 참여할 수 있습니다.
+          다양한 취미와 관심사를 가진 사람들과 만나보세요!
+        </Text>
+        <TouchableOpacity 
+          style={styles.meetingsBtn} 
+          onPress={() => router.push('/meetings')}
+        >
+          <Text style={styles.aiChatBtnText}>🎪 모임 보러가기</Text>
         </TouchableOpacity>
       </View>
 
@@ -292,6 +298,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  meetingsBtn: {
+    backgroundColor: '#27AE60',
+    paddingVertical: 20,
+    paddingHorizontal: 25,
+    borderRadius: 15,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   footer: {
     padding: 20,

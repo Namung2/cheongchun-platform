@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import AiCoreService from '../services/AiCoreService';
+import apiService from '../services/ApiService';
 
 export const useAIChat = (userId) => {
   const [messages, setMessages] = useState([]);
@@ -9,6 +10,11 @@ export const useAIChat = (userId) => {
   const [isTyping, setIsTyping] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const wsRef = useRef(null);
+  const sessionRef = useRef({
+    startTime: null,
+    messageCount: 0,
+    conversationData: []
+  });
 
   // WebSocket 연결 (개선된 버전)
   const connectWebSocket = useCallback(async () => {
@@ -26,6 +32,10 @@ export const useAIChat = (userId) => {
       
       wsRef.current.onopen = () => {
         setIsConnected(true);
+        // 세션 시작
+        sessionRef.current.startTime = new Date();
+        sessionRef.current.messageCount = 0;
+        sessionRef.current.conversationData = [];
       };
 
       wsRef.current.onmessage = (event) => {
@@ -52,11 +62,21 @@ export const useAIChat = (userId) => {
                 }
               };
               
+              // 대화 데이터에 AI 응답 추가
+              sessionRef.current.conversationData.push({
+                role: 'assistant',
+                content: data.content,
+                timestamp: new Date(data.timestamp)
+              });
+              sessionRef.current.messageCount++;
+              
               setMessages(previousMessages => 
                 [aiMessage, ...previousMessages]
               );
               setIsTyping(false);
               setCurrentResponse('');
+              
+              // 실시간 저장 제거 - 세션 종료시에만 저장
               break;
               
             case 'error':
@@ -78,6 +98,11 @@ export const useAIChat = (userId) => {
         setIsConnected(false);
         setIsTyping(false);
         
+        // 세션 종료시 대화 요약 저장
+        if (sessionRef.current.messageCount >= 2) {
+          saveConversationSummary();
+        }
+        
         // 비정상 종료시 재연결 시도
         if (event.code !== 1000) {
           setTimeout(() => {
@@ -91,12 +116,116 @@ export const useAIChat = (userId) => {
     }
   }, [userId]);
 
+  // AI 대화 요약 생성 및 저장
+  const saveConversationSummary = useCallback(async () => {
+    if (!userId || sessionRef.current.conversationData.length === 0) return;
+
+    try {
+      const startTime = sessionRef.current.startTime;
+      const endTime = new Date();
+      const duration = Math.floor((endTime - startTime) / 1000 / 60); // 분 단위
+
+      // 대화 내용을 텍스트로 변환
+      const conversationText = sessionRef.current.conversationData
+        .map(msg => `${msg.role}: ${msg.content}`)
+        .join('\n');
+
+      const sessionTitle = generateSessionTitle(sessionRef.current.conversationData);
+      const basicTopics = extractTopics(conversationText);
+
+      // AI Core에 요약 생성 요청
+      const aiCoreResponse = await fetch('http://localhost:8001/conversation/summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversation_text: conversationText,
+          user_id: parseInt(userId),
+          session_title: sessionTitle,
+          total_messages: sessionRef.current.messageCount,
+          duration_minutes: duration,
+          topics: basicTopics
+        })
+      });
+
+      if (!aiCoreResponse.ok) {
+        throw new Error('AI 요약 생성 실패');
+      }
+
+      const summaryData = await aiCoreResponse.json();
+
+      // 백엔드에 저장할 데이터 구성 (원본 메시지 제외)
+      const saveRequest = {
+        userId: parseInt(userId),
+        sessionTitle: sessionTitle,
+        totalMessages: sessionRef.current.messageCount,
+        durationMinutes: duration,
+        conversationText: conversationText, // AI 분석용
+        mainTopics: summaryData.main_topics,
+        healthMentions: summaryData.health_mentions,
+        concernsDiscussed: [], // 필요시 추가
+        moodAnalysis: summaryData.mood_analysis,
+        stressLevel: summaryData.stress_level,
+        conversationSummary: summaryData.conversation_summary,
+        keyInsights: summaryData.key_insights,
+        aiRecommendations: summaryData.ai_recommendations
+      };
+
+      // 백엔드에 요약만 저장 (원본 메시지는 저장하지 않음)
+      const response = await apiService.saveConversation(saveRequest);
+      console.log('대화 요약 저장 완료:', response);
+
+    } catch (error) {
+      console.error('대화 요약 저장 실패:', error);
+    }
+  }, [userId]);
+
+  // 세션 제목 생성
+  const generateSessionTitle = useCallback((conversationData) => {
+    if (conversationData.length === 0) return '대화';
+    
+    const firstUserMessage = conversationData.find(msg => msg.role === 'user')?.content || '';
+    return firstUserMessage.slice(0, 20) + (firstUserMessage.length > 20 ? '...' : '');
+  }, []);
+
+  // 주요 주제 추출 (간단한 키워드 기반)
+  const extractTopics = useCallback((text) => {
+    const healthKeywords = ['건강', '병원', '약', '운동', '식사', '혈압', '당뇨'];
+    const familyKeywords = ['가족', '자식', '손주', '며느리', '사위'];
+    const hobbyKeywords = ['취미', '여행', '독서', '운동', '요리', '정원'];
+    
+    const topics = [];
+    
+    if (healthKeywords.some(keyword => text.includes(keyword))) {
+      topics.push('건강');
+    }
+    if (familyKeywords.some(keyword => text.includes(keyword))) {
+      topics.push('가족');
+    }
+    if (hobbyKeywords.some(keyword => text.includes(keyword))) {
+      topics.push('취미');
+    }
+    
+    return topics.length > 0 ? topics : ['일상'];
+  }, []);
+
+  // 건강 관련 키워드 추출
+  const extractHealthMentions = useCallback((text) => {
+    const healthTerms = ['혈압', '당뇨', '관절', '심장', '약', '병원', '운동', '식단'];
+    return healthTerms.filter(term => text.includes(term));
+  }, []);
+
   // WebSocket 연결 해제
   const disconnectWebSocket = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // 정상 종료시에도 요약 저장
+      if (sessionRef.current.messageCount >= 2) {
+        saveConversationSummary();
+      }
       wsRef.current.close();
     }
-  }, []);
+  }, [saveConversationSummary]);
 
   // 메시지 전송 (WebSocket 방식)
   const sendMessage = useCallback((newMessages = []) => {

@@ -28,6 +28,34 @@ export default function OAuth() {
   const handleNavigationStateChange = async (navState) => {
     const { url } = navState;
     
+    // OAuth 에러 URL 감지
+    if (url.includes('/auth/oauth-error')) {
+      if (isProcessing) {
+        return;
+      }
+      
+      setIsProcessing(true);
+      setLoading(true);
+      
+      try {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const errorCode = urlParams.get('code');
+        const errorMessage = urlParams.get('message');
+        
+        Alert.alert('로그인 실패', errorMessage || '소셜 로그인에 실패했습니다.', [
+          { text: '확인', onPress: () => router.replace('/login') }
+        ]);
+      } catch (error) {
+        Alert.alert('오류', '로그인 처리 중 오류가 발생했습니다.', [
+          { text: '확인', onPress: () => router.replace('/login') }
+        ]);
+      } finally {
+        setLoading(false);
+        setIsProcessing(false);
+      }
+      return;
+    }
+    
     // OAuth 성공 URL 감지 - 백엔드에서 리다이렉트하는 성공 페이지
     if (url.includes('/auth/oauth-success')) {
       // 이미 처리 중이면 중복 실행 방지
@@ -48,26 +76,14 @@ export default function OAuth() {
         
         if (token && userId) {
           // AuthService를 통해 OAuth 성공 처리
-          console.log('토큰과 사용자 정보 처리 시작:', { token, userId, email, name });
           
           const userInfo = { id: userId, email, name };
           const result = await authService.handleOAuthSuccess(token, userInfo);
           
           if (result.success) {
-            console.log('OAuth 인증 상태 업데이트 완료');
             
-            Alert.alert(
-              '로그인 성공!', 
-              '로그인이 완료되었습니다.', 
-              [{
-                text: '확인', 
-                onPress: () => {
-                  // WebView를 닫고 메인으로 바로 이동
-                  router.replace('/main');
-                }
-              }],
-              { cancelable: false } // 뒤로가기 등으로 닫기 방지
-            );
+            // 팝업 없이 바로 index.js로 이동하여 useAuth가 상태를 업데이트할 시간을 줌
+            router.replace('/');
           } else {
             throw new Error(result.error || 'OAuth 처리 실패');
           }

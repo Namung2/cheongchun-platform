@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { Keyframe } from 'react-native-reanimated';
+import * as WebBrowser from 'expo-web-browser';
 import greenIcon from '../assets/images/표지.png';
 
 // 아래에서 위로 슬라이드 인
@@ -48,7 +49,15 @@ export default function login() {
         {/* Google 계정 로그인 */}
         <TouchableOpacity
           style={[styles.button, styles.googleButton]}
-          onPress={() => router.push('/oauth?provider=google')}
+          onPress={async () => {
+            try {
+              // Google은 expo-web-browser로 처리 (더 안정적인 OAuth 플로우)
+              const googleUrl = 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/oauth2/authorization/google';
+              await WebBrowser.openBrowserAsync(googleUrl);
+            } catch (error) {
+              console.error('Google login error:', error);
+            }
+          }}
         >
           <Text style={[styles.buttonText, styles.whiteText]}>
             Google 계정 로그인

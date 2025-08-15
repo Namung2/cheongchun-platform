@@ -10,6 +10,7 @@ public class AiConversationRequest {
     private Integer totalMessages;
     private Integer durationMinutes;
     private String messagesJson; // 전체 대화 내용
+    private String conversationText; // AI 요약용 텍스트
     
     // AI 분석 결과
     private List<String> mainTopics;

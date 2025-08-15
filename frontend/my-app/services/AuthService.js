@@ -232,8 +232,18 @@ class AuthService {
   // OAuth 성공 후 토큰과 사용자 정보로 인증 상태 업데이트
   async handleOAuthSuccess(token, userInfo) {
     try {
-      // AsyncStorage에 토큰 저장 (이미 저장되어 있지만 확인차 재저장)
-      await AsyncStorage.setItem('accessToken', token);
+      // 이미 같은 사용자로 인증되어 있는지 확인
+      if (this.currentUser && this.currentUser.id == userInfo.id) {
+        await apiService.setToken(token);
+        return {
+          success: true,
+          user: this.currentUser,
+          message: '로그인이 완료되었습니다'
+        };
+      }
+
+      // ApiService를 통해 토큰 저장 (일관성 있는 토큰 관리)
+      await apiService.setToken(token);
       
       // 사용자 정보를 AuthService 형식으로 변환하고 상태 업데이트
       const user = {

@@ -1,34 +1,29 @@
 import { useEffect } from 'react';
 import { View, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../hooks/useAuth';
 import whiteIcon from '../assets/images/흰글씨표지.png'; // ✅ 올바른 이미지 import
 
 export default function Splash() {
   const router = useRouter();
+  const { isAuthenticated, loading } = useAuth();
   
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        
-        setTimeout(() => {
-          if (token) {
-            // 토큰이 있으면 메인 화면으로
-            router.replace('/main');
-          } else {
-            // 토큰이 없으면 로그인 화면으로
-            router.replace('/blank');
-          }
-        }, 1000);
-      } catch (error) {
-        console.error('인증 상태 확인 오류:', error);
-        setTimeout(() => router.replace('/blank'), 1000);
-      }
+    const navigateAfterDelay = () => {
+      setTimeout(() => {
+        if (isAuthenticated) {
+          router.replace('/main');
+        } else {
+          router.replace('/blank');
+        }
+      }, 1000);
     };
-    
-    checkAuthStatus();
-  }, []);
+
+    // 로딩이 완료된 후에만 네비게이션
+    if (!loading) {
+      navigateAfterDelay();
+    }
+  }, [loading, isAuthenticated]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#00C853' }]}>

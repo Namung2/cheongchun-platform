@@ -45,11 +45,12 @@ public class AuthenticationHandlerConfig {
             
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("success", false);
-            errorData.put("error", Map.of(
-                    "code", errorCode,
-                    "message", "소셜 로그인에 실패했습니다",
-                    "details", errorDescription
-            ));
+            Map<String, String> errorInfo = new HashMap<>();
+            errorInfo.put("code", errorCode != null ? errorCode : "unknown_error");
+            errorInfo.put("message", "소셜 로그인에 실패했습니다");
+            errorInfo.put("details", errorDescription != null ? errorDescription : "알 수 없는 오류가 발생했습니다");
+            
+            errorData.put("error", errorInfo);
             
             response.setStatus(400);
             response.setContentType("application/json;charset=UTF-8");
