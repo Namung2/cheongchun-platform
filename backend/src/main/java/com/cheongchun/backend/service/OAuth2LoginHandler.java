@@ -27,29 +27,15 @@ public class OAuth2LoginHandler {
                 CustomOAuth2User customUser = (CustomOAuth2User) principal;
                 String jwt = jwtUtil.generateTokenFromUsername(customUser.getUsername());
 
-                // Provider별 리다이렉트 처리
-                String provider = customUser.getProviderType().toLowerCase();
-                String redirectUrl;
-                
-                if ("google".equals(provider)) {
-                    // Google: 딥링크로 앱 복귀
-                    redirectUrl = String.format(
-                        "myapp://auth-success?token=%s&userId=%s&email=%s&name=%s",
-                        jwt,
-                        customUser.getUserId(),
-                        java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
-                        java.net.URLEncoder.encode(customUser.getUserName(), "UTF-8")
-                    );
-                } else {
-                    // 카카오/네이버: 기존 WebView 방식
-                    redirectUrl = String.format(
-                        "https://cheongchun-backend-40635111975.asia-northeast3.run.app/auth/oauth-success?token=%s&userId=%s&email=%s&name=%s", 
-                        jwt,
-                        customUser.getUserId(),
-                        java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
-                        java.net.URLEncoder.encode(customUser.getUserName(), "UTF-8")
-                    );
-                }
+                // 모든 provider를 웹 리다이렉트로 통일 (웹 테스트용)
+                String redirectUrl = String.format(
+                    "https://cheongchun-backend-40635111975.asia-northeast3.run.app/auth/oauth-success?token=%s&userId=%s&email=%s&name=%s&provider=%s", 
+                    jwt,
+                    customUser.getUserId(),
+                    java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
+                    java.net.URLEncoder.encode(customUser.getUserName(), "UTF-8"),
+                    customUser.getProviderType().toLowerCase()
+                );
                 response.sendRedirect(redirectUrl);
                 
             } else {

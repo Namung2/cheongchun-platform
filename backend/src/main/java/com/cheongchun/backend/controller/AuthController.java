@@ -433,7 +433,8 @@ public class AuthController {
             @RequestParam(required = false) String token,
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String email,
-            @RequestParam(required = false) String name) {
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String provider) {
 
         String html = String.format("""
                 <!DOCTYPE html>
@@ -486,6 +487,7 @@ public class AuthController {
                             <p><strong>이름:</strong> %s</p>
                             <p><strong>이메일:</strong> %s</p>
                             <p><strong>사용자 ID:</strong> %s</p>
+                            <p><strong>로그인 방식:</strong> %s</p>
                         </div>
                         
                         <button onclick="testAPI()">API 테스트</button>
@@ -536,6 +538,7 @@ public class AuthController {
                 name != null ? name : "N/A",
                 email != null ? email : "N/A", 
                 userId != null ? userId : "N/A",
+                provider != null ? provider.toUpperCase() : "UNKNOWN",
                 token != null ? token : "",
                 token != null ? token : ""
         );
