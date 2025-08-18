@@ -13,7 +13,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
-BACKEND_URL = os.getenv("SPRING_BACKEND_URL", "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api")
+BACKEND_URL = os.getenv("SPRING_BACKEND_URL", "https://cheongchun-backend-40635111975.asia-northeast3.run.app")
 AI_CORE_URL = "http://localhost:8001"
 
 class AISystemTester:

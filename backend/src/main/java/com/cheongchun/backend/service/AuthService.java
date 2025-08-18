@@ -1,9 +1,7 @@
 package com.cheongchun.backend.service;
 
-import com.cheongchun.backend.dto.JwtResponse;
 import com.cheongchun.backend.dto.LoginRequest;
 import com.cheongchun.backend.dto.SignUpRequest;
-import com.cheongchun.backend.entity.RefreshToken;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.repository.UserRepository;
 import com.cheongchun.backend.util.JwtUtil;
@@ -11,7 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +33,8 @@ public class AuthService {
     }
 
     @Transactional
-    public JwtResponse registerUser(SignUpRequest signUpRequest, HttpServletRequest request) {
+    // 쿠키 기반 사용자 생성 (토큰 없이)
+    public User createUser(SignUpRequest signUpRequest) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             throw new RuntimeException("사용자명이 이미 사용 중입니다!");
         }
@@ -51,58 +49,29 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
         user.setName(signUpRequest.getName());
         user.setProviderType(User.ProviderType.LOCAL);
-        user.setRole(User.Role.USER);           //기본값
+        user.setRole(User.Role.USER);
         user.setEmailVerified(false);
-        User savedUser = userRepository.save(user);
-
-        // 인증 수행
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        signUpRequest.getUsername(),
-                        signUpRequest.getPassword()
-                )
-        );
-
-        return generateTokenResponse(savedUser, request);
+        
+        return userRepository.save(user);
     }
 
-    @Transactional
-    public JwtResponse authenticateUser(LoginRequest loginRequest, HttpServletRequest request) {
+
+    // 쿠키 기반 사용자 인증 (토큰 없이)
+    public User authenticateUserCookie(LoginRequest loginRequest) {
+        // 인증 수행
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsername(),
                         loginRequest.getPassword()
                 )
         );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        User user = userRepository.findByUsername(loginRequest.getUsername())
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
-
-        // 마지막 로그인 시간 업데이트
-        user.setLastLoginAt(java.time.LocalDateTime.now());
-        userRepository.save(user);
-
-        return generateTokenResponse(user, request);
+        
+        // 인증된 사용자 객체 반환
+        User authenticatedUser = (User) authentication.getPrincipal();
+        return authenticatedUser;
     }
 
-    @Transactional
-    public JwtResponse refreshToken(String refreshTokenStr, HttpServletRequest request) {
-        // 1. 리프레시 토큰 조회 및 검증
-        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr)
-                .orElseThrow(() -> new RuntimeException("유효하지 않은 리프레시 토큰입니다"));
 
-        // 2. 토큰 만료 및 유효성 검증
-        refreshToken = refreshTokenService.verifyExpiration(refreshToken);
-
-        // 3. 기존 토큰 사용 처리 (one-time use)
-        refreshTokenService.markTokenAsUsed(refreshToken);
-
-        // 4. 새로운 토큰 쌍 생성
-        User user = refreshToken.getUser();
-        return generateTokenResponse(user, request);
-    }
 
     @Transactional
     public void logout(User user, String refreshTokenStr) {
@@ -121,28 +90,6 @@ public class AuthService {
         refreshTokenService.revokeAllTokensByUser(user);
     }
 
-    /**
-     * 토큰 응답 생성 (AccessToken + RefreshToken)
-     */
-    private JwtResponse generateTokenResponse(User user, HttpServletRequest request) {
-        // Access Token 생성
-        String accessToken = jwtUtil.generateTokenFromUsername(user.getUsername());
-
-        // Refresh Token 생성
-        String userAgent = request.getHeader("User-Agent");
-        String ipAddress = getClientIpAddress(request);
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, userAgent, ipAddress);
-
-        return new JwtResponse(
-                accessToken,
-                refreshToken.getToken(),
-                jwtUtil.getExpirationDateFromToken(accessToken).getTime(),
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getName()
-        );
-    }
 
     /**
      * 클라이언트 IP 주소 추출

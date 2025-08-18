@@ -1,14 +1,15 @@
 package com.cheongchun.backend.controller;
 
-import com.cheongchun.backend.dto.JwtResponse;
 import com.cheongchun.backend.dto.LoginRequest;
 import com.cheongchun.backend.dto.SignUpRequest;
+import com.cheongchun.backend.entity.RefreshToken;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.repository.UserRepository;
 import com.cheongchun.backend.service.AuthService;
 import com.cheongchun.backend.service.RefreshTokenService;
 import com.cheongchun.backend.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,11 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 
 @RestController
@@ -30,11 +28,13 @@ public class AuthController {
     private final AuthService authService;
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final RefreshTokenService refreshTokenService;
 
-    public AuthController(AuthService authService, JwtUtil jwtUtil, UserRepository userRepository) {
+    public AuthController(AuthService authService, JwtUtil jwtUtil, UserRepository userRepository, RefreshTokenService refreshTokenService) {
         this.authService = authService;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
+        this.refreshTokenService = refreshTokenService;
     }
 
     /**
@@ -42,30 +42,36 @@ public class AuthController {
      */
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignUpRequest signUpRequest,
-                                          HttpServletRequest request) {
+                                          HttpServletRequest request, HttpServletResponse response) {
         try {
-            JwtResponse jwtResponse = authService.registerUser(signUpRequest, request);
+            // 사용자 등록 및 토큰 생성
+            User newUser = authService.createUser(signUpRequest);
+            
+            // JWT 토큰 생성
+            String jwt = jwtUtil.generateTokenFromUsername(newUser.getEmail());
+            
+            // 리프레시 토큰 생성
+            String userAgent = request.getHeader("User-Agent");
+            String ipAddress = getClientIpAddress(request);
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(newUser, userAgent, ipAddress);
+            
+            // 쿠키에 토큰 설정
+            setAuthCookies(response, jwt, refreshToken.getToken());
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("data", Map.of(
+            // 사용자 정보만 응답 (토큰은 쿠키로)
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("success", true);
+            responseData.put("data", Map.of(
                     "user", Map.of(
-                            "id", jwtResponse.getId(),
-                            "username", jwtResponse.getUsername(),
-                            "email", jwtResponse.getEmail(),
-                            "name", jwtResponse.getName()
-                    ),
-                    "tokens", Map.of(
-                            "accessToken", jwtResponse.getAccessToken(),
-                            "refreshToken", jwtResponse.getRefreshToken(),
-                            "tokenType", jwtResponse.getTokenType(),
-                            "expiresIn", jwtResponse.getExpiresIn()
+                            "id", newUser.getId(),
+                            "email", newUser.getEmail(),
+                            "name", newUser.getName()
                     )
             ));
-            response.put("message", "회원가입이 완료되었습니다");
-            response.put("timestamp", LocalDateTime.now());
+            responseData.put("message", "회원가입이 완료되었습니다");
+            responseData.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(responseData);
         } catch (RuntimeException e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
@@ -84,30 +90,36 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest,
-                                              HttpServletRequest request) {
+                                              HttpServletRequest request, HttpServletResponse response) {
         try {
-            JwtResponse jwtResponse = authService.authenticateUser(loginRequest, request);
+            // 사용자 인증
+            User authenticatedUser = authService.authenticateUserCookie(loginRequest);
+            
+            // JWT 토큰 생성
+            String jwt = jwtUtil.generateTokenFromUsername(authenticatedUser.getEmail());
+            
+            // 리프레시 토큰 생성
+            String userAgent = request.getHeader("User-Agent");
+            String ipAddress = getClientIpAddress(request);
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(authenticatedUser, userAgent, ipAddress);
+            
+            // 쿠키에 토큰 설정
+            setAuthCookies(response, jwt, refreshToken.getToken());
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("data", Map.of(
+            // 사용자 정보만 응답 (토큰은 쿠키로)
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("success", true);
+            responseData.put("data", Map.of(
                     "user", Map.of(
-                            "id", jwtResponse.getId(),
-                            "username", jwtResponse.getUsername(),
-                            "email", jwtResponse.getEmail(),
-                            "name", jwtResponse.getName()
-                    ),
-                    "tokens", Map.of(
-                            "accessToken", jwtResponse.getAccessToken(),
-                            "refreshToken", jwtResponse.getRefreshToken(),
-                            "tokenType", jwtResponse.getTokenType(),
-                            "expiresIn", jwtResponse.getExpiresIn()
+                            "id", authenticatedUser.getId(),
+                            "email", authenticatedUser.getEmail(),
+                            "name", authenticatedUser.getName()
                     )
             ));
-            response.put("message", "로그인 성공");
-            response.put("timestamp", LocalDateTime.now());
+            responseData.put("message", "로그인 성공");
+            responseData.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(responseData);
         } catch (RuntimeException e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
@@ -122,63 +134,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * 토큰 갱신
-     */
-    @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request,
-                                          HttpServletRequest httpRequest) {
-        String refreshToken = request.get("refreshToken");
-
-        if (refreshToken == null || refreshToken.trim().isEmpty()) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("error", Map.of(
-                    "code", "REFRESH_TOKEN_REQUIRED",
-                    "message", "리프레시 토큰이 필요합니다",
-                    "details", "refreshToken 필드를 제공해주세요"
-            ));
-            errorResponse.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.badRequest().body(errorResponse);
-        }
-
-        try {
-            JwtResponse jwtResponse = authService.refreshToken(refreshToken, httpRequest);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("data", Map.of(
-                    "user", Map.of(
-                            "id", jwtResponse.getId(),
-                            "username", jwtResponse.getUsername(),
-                            "email", jwtResponse.getEmail(),
-                            "name", jwtResponse.getName()
-                    ),
-                    "tokens", Map.of(
-                            "accessToken", jwtResponse.getAccessToken(),
-                            "refreshToken", jwtResponse.getRefreshToken(),
-                            "tokenType", jwtResponse.getTokenType(),
-                            "expiresIn", jwtResponse.getExpiresIn()
-                    )
-            ));
-            response.put("message", "토큰이 성공적으로 갱신되었습니다");
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("error", Map.of(
-                    "code", "TOKEN_REFRESH_FAILED",
-                    "message", e.getMessage(),
-                    "details", "토큰 갱신에 실패했습니다. 다시 로그인해주세요"
-            ));
-            errorResponse.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
-        }
-    }
 
     /**
      * 현재 사용자 정보 조회
@@ -267,11 +222,114 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
+    /**
+     * 리프레시 토큰을 사용한 토큰 갱신
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // 쿠키에서 리프레시 토큰 추출
+            String refreshToken = null;
+            jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (jakarta.servlet.http.Cookie cookie : cookies) {
+                    if ("refreshToken".equals(cookie.getName())) {
+                        refreshToken = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+
+            if (refreshToken == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", Map.of(
+                        "code", "REFRESH_TOKEN_MISSING",
+                        "message", "리프레시 토큰이 필요합니다",
+                        "details", "다시 로그인해주세요"
+                ));
+                errorResponse.put("timestamp", LocalDateTime.now());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+            }
+
+            // 리프레시 토큰 검증 및 새 토큰 발급
+            Optional<RefreshToken> refreshTokenOpt = refreshTokenService.findByToken(refreshToken);
+            if (refreshTokenOpt.isEmpty()) {
+                // 만료된 리프레시 토큰 쿠키 삭제
+                clearAuthCookies(response);
+                
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", Map.of(
+                        "code", "REFRESH_TOKEN_EXPIRED",
+                        "message", "리프레시 토큰이 만료되었습니다",
+                        "details", "다시 로그인해주세요"
+                ));
+                errorResponse.put("timestamp", LocalDateTime.now());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+            }
+
+            // 토큰 유효성 검증
+            RefreshToken validRefreshToken;
+            try {
+                validRefreshToken = refreshTokenService.verifyExpiration(refreshTokenOpt.get());
+            } catch (RuntimeException e) {
+                // 만료된 리프레시 토큰 쿠키 삭제
+                clearAuthCookies(response);
+                
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", Map.of(
+                        "code", "REFRESH_TOKEN_EXPIRED",
+                        "message", "리프레시 토큰이 만료되었습니다",
+                        "details", e.getMessage()
+                ));
+                errorResponse.put("timestamp", LocalDateTime.now());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+            }
+            
+            User user = validRefreshToken.getUser();
+
+            // 새 JWT 토큰 생성
+            String newJwt = jwtUtil.generateTokenFromUsername(user.getEmail());
+
+            // 새 리프레시 토큰 생성
+            String userAgent = request.getHeader("User-Agent");
+            String ipAddress = getClientIpAddress(request);
+            RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user, userAgent, ipAddress);
+
+            // 기존 리프레시 토큰 무효화
+            refreshTokenService.revokeToken(refreshToken);
+
+            // 새 토큰들을 쿠키로 설정
+            setAuthCookies(response, newJwt, newRefreshToken.getToken());
+
+            Map<String, Object> successResponse = new HashMap<>();
+            successResponse.put("success", true);
+            successResponse.put("message", "토큰이 갱신되었습니다");
+            successResponse.put("timestamp", LocalDateTime.now());
+
+            return ResponseEntity.ok(successResponse);
+
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", Map.of(
+                    "code", "TOKEN_REFRESH_ERROR",
+                    "message", "토큰 갱신 중 오류가 발생했습니다",
+                    "details", e.getMessage()
+            ));
+            errorResponse.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
     /**
      * 로그아웃 (현재 디바이스만)
      */
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody(required = false) Map<String, String> request) {
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication != null && authentication.isAuthenticated() &&
@@ -279,20 +337,30 @@ public class AuthController {
 
             try {
                 User currentUser = (User) authentication.getPrincipal();
+                
+                // 쿠키에서 리프레시 토큰 추출
                 String refreshToken = null;
-
-                if (request != null) {
-                    refreshToken = request.get("refreshToken");
+                jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+                if (cookies != null) {
+                    for (jakarta.servlet.http.Cookie cookie : cookies) {
+                        if ("refreshToken".equals(cookie.getName())) {
+                            refreshToken = cookie.getValue();
+                            break;
+                        }
+                    }
                 }
 
                 authService.logout(currentUser, refreshToken);
+                
+                // 쿠키 삭제
+                clearAuthCookies(response);
 
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", true);
-                response.put("message", "로그아웃되었습니다");
-                response.put("timestamp", LocalDateTime.now());
+                Map<String, Object> responseData = new HashMap<>();
+                responseData.put("success", true);
+                responseData.put("message", "로그아웃되었습니다");
+                responseData.put("timestamp", LocalDateTime.now());
 
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(responseData);
             } catch (Exception e) {
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("success", false);
@@ -307,12 +375,12 @@ public class AuthController {
             }
         }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "로그아웃되었습니다");
-        response.put("timestamp", LocalDateTime.now());
+        Map<String, Object> logoutResponse = new HashMap<>();
+        logoutResponse.put("success", true);
+        logoutResponse.put("message", "로그아웃되었습니다");
+        logoutResponse.put("timestamp", LocalDateTime.now());
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(logoutResponse);
     }
 
     /**
@@ -430,7 +498,6 @@ public class AuthController {
      */
     @GetMapping("/oauth-success")
     public ResponseEntity<String> handleOAuthSuccess(
-            @RequestParam(required = false) String token,
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String name,
@@ -491,24 +558,37 @@ public class AuthController {
                         </div>
                         
                         <button onclick="testAPI()">API 테스트</button>
-                        <button onclick="logout()">로그아웃</button>
+                        <button onclick="goToMain()">메인으로 이동</button>
                         
                         <div id="result" style="margin-top: 20px;"></div>
                     </div>
 
                     <script>
-                        // 토큰 저장
-                        if('%s') {
-                            localStorage.setItem('accessToken', '%s');
+                        // React Native WebView에 토큰 정보 전달
+                        const userData = {
+                            userId: '%s', 
+                            email: '%s',
+                            name: '%s',
+                            provider: '%s'
+                        };
+                        
+                        // WebView에 postMessage로 사용자 정보 전달 (React Native)
+                        if (window.ReactNativeWebView) {
+                            window.ReactNativeWebView.postMessage(JSON.stringify({
+                                type: 'oauth_success',
+                                data: userData
+                            }));
+                        } else {
+                            // 웹 환경에서는 쿠키에 토큰이 이미 저장됨
+                            document.querySelector('.container').innerHTML += 
+                                '<div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin-top: 20px;">로그인이 완료되었습니다! 쿠키에 토큰이 안전하게 저장되었습니다.</div>';
                         }
                         
                         async function testAPI() {
                             try {
-                                const token = localStorage.getItem('accessToken');
+                                // 쿠키에서 자동으로 토큰을 읽어오므로 별도 헤더 설정 불필요
                                 const response = await fetch('/auth/me', {
-                                    headers: {
-                                        'Authorization': `Bearer $${token}`
-                                    }
+                                    credentials: 'include' // 쿠키 포함하여 요청
                                 });
                                 
                                 const result = await response.json();
@@ -525,11 +605,17 @@ public class AuthController {
                             }
                         }
                         
-                        function logout() {
-                            localStorage.removeItem('accessToken');
-                            localStorage.removeItem('refreshToken');
-                            alert('로그아웃되었습니다.');
-                            location.reload();
+                        function goToMain() {
+                            if (window.ReactNativeWebView) {
+                                // React Native 앱 환경
+                                window.ReactNativeWebView.postMessage(JSON.stringify({
+                                    type: 'navigate_to_main'
+                                }));
+                            } else {
+                                // 웹 브라우저 환경  
+                                alert('로그인이 완료되었습니다! 메인 페이지로 이동합니다.');
+                                window.location.href = '/';
+                            }
                         }
                     </script>
                 </body>
@@ -539,8 +625,10 @@ public class AuthController {
                 email != null ? email : "N/A", 
                 userId != null ? userId : "N/A",
                 provider != null ? provider.toUpperCase() : "UNKNOWN",
-                token != null ? token : "",
-                token != null ? token : ""
+                userId != null ? userId : "",
+                email != null ? email : "",
+                name != null ? name : "",
+                provider != null ? provider : ""
         );
 
         return ResponseEntity.ok()
@@ -626,5 +714,64 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header("Content-Type", "text/html; charset=UTF-8")
                 .body(html);
+    }
+
+    /**
+     * 쿠키에 인증 토큰들을 설정하는 헬퍼 메소드
+     */
+    private void setAuthCookies(HttpServletResponse response, String accessToken, String refreshToken) {
+        // JWT를 HttpOnly 쿠키로 설정 (7일)
+        jakarta.servlet.http.Cookie jwtCookie = new jakarta.servlet.http.Cookie("accessToken", accessToken);
+        jwtCookie.setHttpOnly(true);
+        jwtCookie.setSecure(true); // HTTPS에서만 전송
+        jwtCookie.setPath("/");
+        jwtCookie.setMaxAge(7 * 24 * 60 * 60); // 7일
+        response.addCookie(jwtCookie);
+        
+        // 리프레시 토큰을 HttpOnly 쿠키로 설정 (7일)
+        jakarta.servlet.http.Cookie refreshCookie = new jakarta.servlet.http.Cookie("refreshToken", refreshToken);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(7 * 24 * 60 * 60); // 7일
+        response.addCookie(refreshCookie);
+    }
+
+    /**
+     * 인증 쿠키들을 삭제하는 헬퍼 메소드
+     */
+    private void clearAuthCookies(HttpServletResponse response) {
+        // accessToken 쿠키 삭제
+        jakarta.servlet.http.Cookie jwtCookie = new jakarta.servlet.http.Cookie("accessToken", "");
+        jwtCookie.setHttpOnly(true);
+        jwtCookie.setSecure(true);
+        jwtCookie.setPath("/");
+        jwtCookie.setMaxAge(0); // 즉시 만료
+        response.addCookie(jwtCookie);
+        
+        // refreshToken 쿠키 삭제
+        jakarta.servlet.http.Cookie refreshCookie = new jakarta.servlet.http.Cookie("refreshToken", "");
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(0); // 즉시 만료
+        response.addCookie(refreshCookie);
+    }
+
+    /**
+     * 클라이언트 IP 주소를 추출하는 헬퍼 메소드
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        
+        return request.getRemoteAddr();
     }
 }

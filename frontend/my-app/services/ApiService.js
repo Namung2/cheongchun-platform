@@ -11,48 +11,32 @@ class ApiService {
     this.timeout = Config.API.TIMEOUT;
   }
 
-  // ===== 토큰 관리 =====
+  // ===== 토큰 관리 (쿠키 기반으로 전환, 하위 호환용) =====
   
   async getToken() {
-    try {
-      return await AsyncStorage.getItem('accessToken');
-    } catch (error) {
-      console.error('토큰 조회 실패:', error);
-      return null;
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    return null;
   }
 
   async setToken(token) {
-    try {
-      await AsyncStorage.setItem('accessToken', token);
-    } catch (error) {
-      console.error('토큰 저장 실패:', error);
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    console.log('토큰은 이제 쿠키로 자동 관리됩니다');
   }
 
   async getRefreshToken() {
-    try {
-      return await AsyncStorage.getItem('refreshToken');
-    } catch (error) {
-      console.error('리프레시 토큰 조회 실패:', error);
-      return null;
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    return null;
   }
 
   async setRefreshToken(token) {
-    try {
-      await AsyncStorage.setItem('refreshToken', token);
-    } catch (error) {
-      console.error('리프레시 토큰 저장 실패:', error);
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    console.log('리프레시 토큰은 이제 쿠키로 자동 관리됩니다');
   }
 
   async clearTokens() {
-    try {
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
-    } catch (error) {
-      console.error('토큰 삭제 실패:', error);
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    // 로그아웃은 서버 API 호출로 처리
+    console.log('토큰 정리는 로그아웃 API를 통해 처리됩니다');
   }
 
   // ===== 공통 API 호출 메서드 =====
@@ -67,11 +51,8 @@ class ApiService {
       ...options,
     };
 
-    // 인증 토큰 추가
-    const token = await this.getToken();
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
+    // 쿠키 기반 인증으로 전환 - Authorization 헤더 불필요
+    // 토큰은 쿠키에서 자동으로 전송됨
 
     try {
       const controller = new AbortController();
@@ -79,6 +60,7 @@ class ApiService {
 
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...config,
+        credentials: 'include', // 쿠키 포함하여 요청
         signal: controller.signal,
       });
 

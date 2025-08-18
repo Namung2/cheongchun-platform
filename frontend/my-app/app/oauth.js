@@ -57,52 +57,52 @@ export default function OAuth() {
       return;
     }
     
-    // OAuth 성공 URL 감지 - 백엔드에서 리다이렉트하는 성공 페이지
-    if (url.includes('/auth/oauth-success')) {
-      // 이미 처리 중이면 중복 실행 방지
-      if (isProcessing) {
-        return;
-      }
+    // 쿠키 기반 OAuth로 전환되어 URL 파라미터 처리는 더 이상 필요하지 않음
+    // WebView에서 postMessage로만 처리
+  };
+
+  const handleMessage = async (event) => {
+    // 이미 처리 중이면 중복 실행 방지
+    if (isProcessing) {
+      return;
+    }
+    
+    try {
+      const message = JSON.parse(event.nativeEvent.data);
       
-      setIsProcessing(true);
-      setLoading(true);
-      
-      try {
-        // URL에서 토큰과 사용자 정보 추출
-        const urlParams = new URLSearchParams(url.split('?')[1]);
-        const token = urlParams.get('token');
-        const userId = urlParams.get('userId');
-        const email = urlParams.get('email');
-        const name = urlParams.get('name');
-        const provider = urlParams.get('provider');
+      if (message.type === 'oauth_success') {
+        setIsProcessing(true);
+        setLoading(true);
         
-        if (token && userId) {
-          // AuthService를 통해 OAuth 성공 처리
-          
-          const userInfo = { id: userId, email, name, provider };
-          const result = await authService.handleOAuthSuccess(token, userInfo);
+        const { userId } = message.data;
+        
+        if (userId) {
+          // 쿠키 기반이므로 토큰을 별도로 받을 필요 없음
+          // 서버에서 사용자 정보를 조회하여 인증 상태 확인
+          const result = await authService.handleCookieBasedOAuth();
           
           if (result.success) {
-            
-            // 팝업 없이 바로 index.js로 이동하여 useAuth가 상태를 업데이트할 시간을 줌
             router.replace('/');
           } else {
             throw new Error(result.error || 'OAuth 처리 실패');
           }
         } else {
-          Alert.alert('로그인 실패', '토큰 정보를 찾을 수 없습니다.', [
+          Alert.alert('로그인 실패', '사용자 정보를 찾을 수 없습니다.', [
             { text: '확인', onPress: () => router.replace('/login') }
           ]);
         }
-      } catch (error) {
-        console.error('OAuth 처리 오류:', error);
-        Alert.alert('오류', '로그인 처리 중 오류가 발생했습니다.', [
-          { text: '확인', onPress: () => router.replace('/login') }
-        ]);
-      } finally {
-        setLoading(false);
-        setIsProcessing(false);
+      } else if (message.type === 'navigate_to_main') {
+        // 웹 환경에서 메인 이동 요청 처리
+        router.replace('/');
       }
+    } catch (error) {
+      console.error('WebView 메시지 처리 오류:', error);
+      Alert.alert('오류', '로그인 처리 중 오류가 발생했습니다.', [
+        { text: '확인', onPress: () => router.replace('/login') }
+      ]);
+    } finally {
+      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -124,6 +124,7 @@ export default function OAuth() {
       <WebView
         source={{ uri: getOAuthUrl() }}
         onNavigationStateChange={handleNavigationStateChange}
+        onMessage={handleMessage}
         onError={handleError}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}

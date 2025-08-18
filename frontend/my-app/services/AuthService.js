@@ -269,6 +269,33 @@ class AuthService {
     }
   }
 
+  // 쿠키 기반 OAuth 성공 처리 (새로운 쿠키 방식)
+  async handleCookieBasedOAuth() {
+    try {
+      // 쿠키에 토큰이 이미 설정되어 있으므로, 바로 사용자 정보 조회
+      const response = await apiService.getCurrentUser();
+      
+      if (response.success) {
+        // 서버에서 받은 사용자 정보로 상태 업데이트
+        this.notifyAuthListeners(response.data);
+        
+        return {
+          success: true,
+          user: response.data,
+          message: '로그인이 완료되었습니다'
+        };
+      } else {
+        throw new Error(response.error?.message || '사용자 정보 조회 실패');
+      }
+    } catch (error) {
+      console.error('쿠키 기반 OAuth 처리 오류:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // ===== 유틸리티 메서드 =====
 
   // 필드명을 한글로 변환
