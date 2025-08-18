@@ -49,7 +49,7 @@ public class SecurityConfig {
                         
                         // Google Search Console 인증 파일 (루트 경로와 API 경로 모두)
                         .requestMatchers("/google32870450675243f1.html").permitAll()
-                        .requestMatchers("/**/google32870450675243f1.html").permitAll()
+                        .requestMatchers("/google32870450675243f1.html").permitAll()
                         
                         // Google OAuth 동의 화면용 정책 페이지들
                         .requestMatchers("/privacy").permitAll()

@@ -3,7 +3,7 @@
 # 인증 시스템 테스트 스크립트
 # 사용법: ./test_auth.sh
 
-BASE_URL="http://localhost:8080/api"
+BASE_URL="http://localhost:8080"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

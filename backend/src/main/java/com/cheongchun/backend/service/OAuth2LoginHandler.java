@@ -43,7 +43,7 @@ public class OAuth2LoginHandler {
                 } else {
                     // 카카오/네이버: 기존 WebView 방식
                     redirectUrl = String.format(
-                        "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-success?token=%s&userId=%s&email=%s&name=%s", 
+                        "https://cheongchun-backend-40635111975.asia-northeast3.run.app/auth/oauth-success?token=%s&userId=%s&email=%s&name=%s", 
                         jwt,
                         customUser.getUserId(),
                         java.net.URLEncoder.encode(customUser.getEmail(), "UTF-8"),
@@ -54,14 +54,14 @@ public class OAuth2LoginHandler {
                 
             } else {
                 // 실패 시에도 리다이렉트
-                String errorUrl = "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-error?code=unsupported_principal_type&message=" + 
+                String errorUrl = "https://cheongchun-backend-40635111975.asia-northeast3.run.app/auth/oauth-error?code=unsupported_principal_type&message=" + 
                                 java.net.URLEncoder.encode("지원하지 않는 사용자 타입입니다", "UTF-8");
                 response.sendRedirect(errorUrl);
             }
         } catch (Exception e) {
             // 오류 시에도 리다이렉트
             String errorUrl = String.format(
-                "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/auth/oauth-error?code=oauth2_processing_error&message=%s", 
+                "https://cheongchun-backend-40635111975.asia-northeast3.run.app/auth/oauth-error?code=oauth2_processing_error&message=%s", 
                 java.net.URLEncoder.encode("OAuth2 로그인 처리 중 오류가 발생했습니다", "UTF-8")
             );
             response.sendRedirect(errorUrl);

@@ -65,7 +65,7 @@ export KAKAO_CLIENT_SECRET="your-kakao-client-secret"
 JWT_TOKEN="eyJhbGciOiJIUzUxMiJ9..."
 
 # 현재 사용자 정보 조회
-curl -X GET http://localhost:8080/api/auth/me \
+curl -X GET http://localhost:8080/auth/me \
   -H "Authorization: Bearer $JWT_TOKEN"
 ```
 

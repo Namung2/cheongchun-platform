@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/meetings")  // /api는 context-path에서 처리
+@RequestMapping("/meetings")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class MeetingController {
 
@@ -116,7 +116,7 @@ public class MeetingController {
             searchRequest.setMaxFee(maxFee);
             searchRequest.setDifficultyLevel(difficultyLevel); // enum은 null이어도 괜찼음
 
-            // TODO: startDate, endDate 파싱 추가 시 null 체크 필요
+            // Date parsing validation needed if implemented
 
             searchRequest.setSortBy(sortBy != null ? sortBy : "LATEST");
             searchRequest.setPage(page);

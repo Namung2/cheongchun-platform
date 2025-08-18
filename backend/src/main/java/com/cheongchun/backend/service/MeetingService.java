@@ -229,7 +229,7 @@ public class MeetingService {
         Pageable pageable = PageRequest.of(page, size);
 
         // 사용자의 관심 카테고리 기반 간단한 추천
-        // TODO: 나중에 AI 서비스로 교체
+        // AI 서비스 연동 예정
         Page<Meeting> meetings = meetingRepository.findLatestMeetings(Meeting.Status.RECRUITING, pageable);
         return convertMeetingsToSummaryPage(meetings, currentUser);
     }
@@ -629,8 +629,7 @@ public class MeetingService {
         summary.setId(user.getId());
         summary.setName(user.getName());
         summary.setProfileImageUrl(user.getProfileImageUrl());
-        // summary.setAge(user.getAge()); // User 엔티티에 age 필드 추가 필요 시
-        // summary.setLocation(user.getLocation()); // User 엔티티에 location 필드 추가 필요 시
+        // Age and location fields not implemented yet
 
         return summary;
     }
