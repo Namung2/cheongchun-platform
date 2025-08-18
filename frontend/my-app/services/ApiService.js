@@ -2,12 +2,13 @@
 // 기존 프론트엔드 코드를 건드리지 않고 새로 추가하는 API 서비스
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Config from '../config';
 
 class ApiService {
   constructor() {
     // 프로덕션 환경 설정
-    this.baseURL = 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/api';
-    this.timeout = 10000;
+    this.baseURL = Config.API.BASE_URL;
+    this.timeout = Config.API.TIMEOUT;
   }
 
   // ===== 토큰 관리 =====

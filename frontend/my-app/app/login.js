@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { Keyframe } from 'react-native-reanimated';
-import * as WebBrowser from 'expo-web-browser';
 import greenIcon from '../assets/images/표지.png';
+import Config from '../config';
 
 // 아래에서 위로 슬라이드 인
 const SlideInFromBottom = new Keyframe({
@@ -49,14 +49,9 @@ export default function login() {
         {/* Google 계정 로그인 */}
         <TouchableOpacity
           style={[styles.button, styles.googleButton]}
-          onPress={async () => {
-            try {
-              // Google은 expo-web-browser로 처리 (더 안정적인 OAuth 플로우)
-              const googleUrl = 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/oauth2/authorization/google';
-              await WebBrowser.openBrowserAsync(googleUrl);
-            } catch (error) {
-              console.error('Google login error:', error);
-            }
+          onPress={() => {
+            // 모든 OAuth 방식을 WebView로 통일
+            router.push('/oauth?provider=google');
           }}
         >
           <Text style={[styles.buttonText, styles.whiteText]}>
@@ -64,7 +59,7 @@ export default function login() {
           </Text>
         </TouchableOpacity>
 
-        {/* 회원 가입 */}
+        {/* 회원 가입 - TODO: signup 페이지 구현 후 활성화
         <TouchableOpacity
           style={[styles.button, styles.signupButton]}
           onPress={() => router.push('/signup')}
@@ -73,6 +68,7 @@ export default function login() {
             회원 가입
           </Text>
         </TouchableOpacity>
+        */}
 
       </Animated.View>
     </View>

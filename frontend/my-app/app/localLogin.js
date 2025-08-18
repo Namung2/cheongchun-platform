@@ -64,12 +64,14 @@ export default function LocalLogin() {
         </Text>
       </TouchableOpacity>
       
+      {/* TODO: signup 페이지 구현 후 활성화
       <View style={styles.row}>
         <Text>계정이 없으신가요? </Text>
         <TouchableOpacity onPress={() => router.push('/signup')}>
           <Text style={styles.link}>회원 가입</Text>
         </TouchableOpacity>
       </View>
+      */}
       
       <TouchableOpacity 
         style={styles.backBtn} 

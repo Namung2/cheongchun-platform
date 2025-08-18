@@ -4,6 +4,7 @@ import { WebView } from 'react-native-webview';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/AuthService';
+import Config from '../config';
 
 export default function OAuth() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function OAuth() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const getOAuthUrl = () => {
-    const baseUrl = 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/oauth2/authorization';
+    const baseUrl = Config.API.BASE_URL + '/oauth2/authorization';
     return `${baseUrl}/${provider}`;
   };
 
@@ -73,11 +74,12 @@ export default function OAuth() {
         const userId = urlParams.get('userId');
         const email = urlParams.get('email');
         const name = urlParams.get('name');
+        const provider = urlParams.get('provider');
         
         if (token && userId) {
           // AuthService를 통해 OAuth 성공 처리
           
-          const userInfo = { id: userId, email, name };
+          const userInfo = { id: userId, email, name, provider };
           const result = await authService.handleOAuthSuccess(token, userInfo);
           
           if (result.success) {
