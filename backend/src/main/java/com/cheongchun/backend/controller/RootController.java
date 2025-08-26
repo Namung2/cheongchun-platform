@@ -25,6 +25,32 @@ public class RootController {
     }
 
     /**
+     * 루트 경로 처리 - OAuth 로그인 성공 후 프론트엔드로 리다이렉트
+     */
+    @GetMapping("/")
+    public ResponseEntity<String> redirectToFrontend() {
+        String content = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>청춘 - 프론트엔드로 이동</title>
+                    <meta charset="UTF-8">
+                    <script>
+                        // 프론트엔드 앱으로 리다이렉트
+                        window.location.href = 'http://localhost:8081/main';
+                    </script>
+                </head>
+                <body>
+                    <p>프론트엔드 앱으로 이동 중...</p>
+                </body>
+                </html>
+                """;
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(content);
+    }
+
+    /**
      * Google OAuth 동의 화면용 개인정보처리방침 페이지
      */
     @GetMapping("/privacy")

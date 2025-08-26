@@ -46,14 +46,6 @@ public class WebConfig implements WebMvcConfigurer {
         converters.add(jsonConverter);
     }
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(false)  // 개발용 - credentials 비활성화
-                .maxAge(3600);
-    }
+    // CORS 설정은 SecurityConfig에서 관리하므로 제거
 
 }
