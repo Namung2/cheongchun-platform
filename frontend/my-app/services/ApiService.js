@@ -313,7 +313,7 @@ class ApiService {
 
   async checkHealth() {
     try {
-      const response = await fetch('https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/actuator/health');
+      const response = await fetch(`${this.baseURL}/actuator/health`);
       return await response.json();
     } catch (error) {
       throw new Error('서버에 연결할 수 없습니다');

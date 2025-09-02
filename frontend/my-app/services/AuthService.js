@@ -42,23 +42,23 @@ class AuthService {
 
   async initializeAuth() {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      if (token) {
-        // 토큰이 있으면 사용자 정보 조회
-        const response = await apiService.getCurrentUser();
-        if (response.success) {
-          this.notifyAuthListeners(response.data);
-          return response.data;
-        } else {
-          // 토큰이 유효하지 않으면 삭제
-          await apiService.clearTokens();
-        }
+      console.log('🔄 인증 초기화 시작...');
+      // 쿠키 기반 인증으로 변경 - 직접 /auth/me API 호출
+      const response = await apiService.getCurrentUser();
+      console.log('📡 /auth/me 응답:', response);
+      
+      if (response.success) {
+        console.log('✅ 인증 성공, 사용자 정보:', response.data);
+        this.notifyAuthListeners(response.data);
+        return response.data;
+      } else {
+        console.log('❌ 인증 실패, 응답:', response);
+        // 인증 실패시 null 설정
+        this.notifyAuthListeners(null);
+        return null;
       }
-      this.notifyAuthListeners(null);
-      return null;
     } catch (error) {
-      console.error('인증 초기화 실패:', error);
-      await apiService.clearTokens();
+      console.error('💥 인증 초기화 실패:', error);
       this.notifyAuthListeners(null);
       return null;
     }
