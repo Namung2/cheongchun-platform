@@ -1,9 +1,11 @@
 package com.cheongchun.backend.service;
 
+import com.cheongchun.backend.config.properties.JwtProperties;
 import com.cheongchun.backend.entity.RefreshToken;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.repository.RefreshTokenRepository;
-import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,18 +20,15 @@ import java.util.Optional;
 @Transactional
 public class RefreshTokenService {
 
+    private static final Logger logger = LoggerFactory.getLogger(RefreshTokenService.class);
+    
     private final RefreshTokenRepository refreshTokenRepository;
+    private final JwtProperties jwtProperties;
     private final SecureRandom secureRandom;
 
-    // 설정값들 (application.properties에서 가져옴)
-    @Value("${app.jwt.refresh-expiration:604800000}") // 7일 (밀리초)
-    private long refreshExpirationMs;
-
-    @Value("${app.jwt.max-refresh-tokens-per-user:5}") // 사용자당 최대 리프레시 토큰 개수
-    private int maxRefreshTokensPerUser;
-
-    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository) {
+    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository, JwtProperties jwtProperties) {
         this.refreshTokenRepository = refreshTokenRepository;
+        this.jwtProperties = jwtProperties;
         this.secureRandom = new SecureRandom();
     }
 
@@ -42,7 +41,7 @@ public class RefreshTokenService {
 
         // 새 토큰 생성
         String token = generateSecureToken();
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000);
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(jwtProperties.getRefreshExpiration() / 1000);
 
         RefreshToken refreshToken = new RefreshToken(token, user, expiresAt);
         refreshToken.setUserAgent(userAgent);
@@ -109,9 +108,9 @@ public class RefreshTokenService {
     private void cleanupOldTokensForUser(User user) {
         long validTokenCount = refreshTokenRepository.countValidTokensByUser(user, LocalDateTime.now());
 
-        if (validTokenCount >= maxRefreshTokensPerUser) {
+        if (validTokenCount >= jwtProperties.getMaxRefreshTokensPerUser()) {
             // 현재 유효한 토큰이 최대 개수를 초과하면 오래된 것들 삭제
-            refreshTokenRepository.deleteOldTokensByUser(user.getId(), maxRefreshTokensPerUser - 1);
+            refreshTokenRepository.deleteOldTokensByUser(user.getId(), jwtProperties.getMaxRefreshTokensPerUser() - 1);
         }
     }
 
@@ -124,7 +123,7 @@ public class RefreshTokenService {
         int deletedCount = refreshTokenRepository.deleteExpiredTokens(oneDayAgo);
 
         if (deletedCount > 0) {
-            System.out.println("정리된 만료 토큰 개수: " + deletedCount);
+            logger.info("정리된 만료 토큰 개수: {}", deletedCount);
         }
     }
 
@@ -156,7 +155,7 @@ public class RefreshTokenService {
         return new RefreshTokenStats(
                 validTokens.size(),
                 allTokens.size(),
-                maxRefreshTokensPerUser
+                jwtProperties.getMaxRefreshTokensPerUser()
         );
     }
 
