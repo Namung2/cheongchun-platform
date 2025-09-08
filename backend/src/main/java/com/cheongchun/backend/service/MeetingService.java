@@ -97,8 +97,8 @@ public class MeetingService {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new RuntimeException("모임을 찾을 수 없습니다"));
 
-        // 조회수 증가 (비동기 처리 권장)
-        incrementViewCount(meetingId);
+        // 조회수 증가 (비동기 처리 권장) 나중에 코드 리팩토링 해야함
+        //incrementViewCount(meetingId);
 
         return convertToMeetingResponse(meeting, currentUser);
     }

@@ -6,11 +6,16 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 @Setter
 @Getter
@@ -128,7 +133,33 @@ public class Meeting {
 
     // Enum 정의
     public enum Category {
-        HOBBY, EXERCISE, CULTURE, EDUCATION, TALK, VOLUNTEER
+        HOBBY("취미"),
+        EDUCATION("교육"),
+        VOLUNTEER("봉사"),
+        TALK("대화"),
+        CULTURE("문화"),
+        EXERCISE("운동/건강");
+
+    private final String label;
+
+    Category(String label) {
+        this.label = label;
+    }
+
+    @JsonCreator
+    public static Category from(String value) {
+        for (Category category : Category.values()) {
+            if (category.name().equalsIgnoreCase(value) || category.label.equals(value)) {
+                return category;
+            }
+        }
+        throw new IllegalArgumentException("Unknown category: " + value);
+    }
+
+    @JsonValue
+    public String getLabel() {
+        return label;
+    }
     }
 
     public enum DifficultyLevel {
