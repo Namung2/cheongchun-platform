@@ -9,9 +9,9 @@ export default function Index() {
   useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
-        router.replace('/main');
+        router.replace('./login/main');
       } else {
-        router.replace('/splash');
+        router.replace('./login/splash');
       }
     }
   }, [isAuthenticated, loading]);
