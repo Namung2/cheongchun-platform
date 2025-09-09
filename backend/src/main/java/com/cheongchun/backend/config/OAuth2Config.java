@@ -5,7 +5,6 @@ import com.cheongchun.backend.security.CustomOAuth2User;
 import com.cheongchun.backend.security.OAuth2UserInfo;
 import com.cheongchun.backend.service.CustomOAuth2UserService;
 import com.cheongchun.backend.service.OAuth2UserStrategy;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2LoginConfigurer;

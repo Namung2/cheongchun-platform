@@ -3,9 +3,9 @@ package com.cheongchun.backend.service;
 import com.cheongchun.backend.dto.LoginRequest;
 import com.cheongchun.backend.dto.SignUpRequest;
 import com.cheongchun.backend.entity.User;
+import com.cheongchun.backend.exception.UserAlreadyExistsException;
+import com.cheongchun.backend.exception.EmailAlreadyExistsException;
 import com.cheongchun.backend.repository.UserRepository;
-import com.cheongchun.backend.util.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -19,16 +19,14 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
-    private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager, JwtUtil jwtUtil,
+                       AuthenticationManager authenticationManager,
                        RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
-        this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
     }
 
@@ -36,11 +34,11 @@ public class AuthService {
     // 쿠키 기반 사용자 생성 (토큰 없이)
     public User createUser(SignUpRequest signUpRequest) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            throw new RuntimeException("사용자명이 이미 사용 중입니다!");
+            throw new UserAlreadyExistsException("사용자명이 이미 사용 중입니다: " + signUpRequest.getUsername());
         }
 
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            throw new RuntimeException("이메일이 이미 사용 중입니다!");
+            throw new EmailAlreadyExistsException("이메일이 이미 사용 중입니다: " + signUpRequest.getEmail());
         }
 
         User user = new User();
@@ -91,22 +89,6 @@ public class AuthService {
     }
 
 
-    /**
-     * 클라이언트 IP 주소 추출
-     */
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-
-        return request.getRemoteAddr();
-    }
 
     /**
      * 사용자 활성 세션 조회

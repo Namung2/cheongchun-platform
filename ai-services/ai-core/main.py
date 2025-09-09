@@ -27,7 +27,7 @@ app.add_middleware(
 
 # 환경 변수
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SPRING_BACKEND_URL = os.getenv("SPRING_BACKEND_URL", "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api")
+SPRING_BACKEND_URL = os.getenv("SPRING_BACKEND_URL", "https://cheongchun-backend-40635111975.asia-northeast3.run.app")
 
 # 활성 WebSocket 연결 관리
 class ConnectionManager:

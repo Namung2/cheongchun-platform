@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class BackendService:
     def __init__(self):
-        self.base_url = os.getenv("SPRING_BACKEND_URL", "https://cheongchun-backend-40635111975.asia-northeast3.run.app/api")
+        self.base_url = os.getenv("SPRING_BACKEND_URL", "https://cheongchun-backend-40635111975.asia-northeast3.run.app")
         self.timeout = httpx.Timeout(30.0)
     
     async def get_user_ai_profile(self, token: str) -> Optional[Dict]:

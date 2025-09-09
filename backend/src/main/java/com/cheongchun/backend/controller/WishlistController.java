@@ -4,6 +4,7 @@ import com.cheongchun.backend.dto.WishlistDto;
 import com.cheongchun.backend.entity.Meeting;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.service.WishlistService;
+import com.cheongchun.backend.util.ControllerUtils;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -45,9 +46,9 @@ public class WishlistController {
 
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
-            return createErrorResponse("ADD_WISHLIST_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("ADD_WISHLIST_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "찜 추가 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "찜 추가 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -67,9 +68,9 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return createErrorResponse("REMOVE_WISHLIST_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("REMOVE_WISHLIST_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "찜 삭제 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "찜 삭제 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -99,14 +100,14 @@ public class WishlistController {
             response.put("success", true);
             response.put("data", Map.of(
                     "wishlists", wishlists.getContent(),
-                    "pagination", createPaginationInfo(wishlists)
+                    "pagination", ControllerUtils.createPaginationInfo(wishlists)
             ));
             response.put("message", "찜 목록 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("WISHLIST_ERROR", "찜 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("WISHLIST_ERROR", "찜 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -130,7 +131,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("CHECK_ERROR", "찜 상태 확인 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("CHECK_ERROR", "찜 상태 확인 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -151,7 +152,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("UPCOMING_ERROR", "곧 시작되는 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("UPCOMING_ERROR", "곧 시작되는 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -171,7 +172,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("STATS_ERROR", "찜 통계 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("STATS_ERROR", "찜 통계 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -192,7 +193,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("NOT_APPLIED_ERROR", "신청하지 않은 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("NOT_APPLIED_ERROR", "신청하지 않은 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -213,7 +214,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("FREE_MEETINGS_ERROR", "무료 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("FREE_MEETINGS_ERROR", "무료 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -231,14 +232,14 @@ public class WishlistController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", popularMeetings.getContent(),
-                    "pagination", createPaginationInfo(popularMeetings)
+                    "pagination", ControllerUtils.createPaginationInfo(popularMeetings)
             ));
             response.put("message", "인기 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("POPULAR_ERROR", "인기 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("POPULAR_ERROR", "인기 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -265,7 +266,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("PERIOD_ERROR", "기간별 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("PERIOD_ERROR", "기간별 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -287,7 +288,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            return createErrorResponse("BATCH_ERROR", "배치 작업 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("BATCH_ERROR", "배치 작업 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -310,7 +311,7 @@ public class WishlistController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("MEETING_IDS_ERROR", "모임 ID 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("MEETING_IDS_ERROR", "모임 ID 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -343,37 +344,4 @@ public class WishlistController {
         return checkWishlistStatus(meetingId, currentUser);
     }
 
-    // ===================== 유틸리티 메서드들 =====================
-
-    /**
-     * 에러 응답 생성
-     */
-    private ResponseEntity<?> createErrorResponse(String code, String message, HttpStatus status) {
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("success", false);
-        errorResponse.put("error", Map.of(
-                "code", code,
-                "message", message,
-                "details", "찜 관련 작업을 처리할 수 없습니다"
-        ));
-        errorResponse.put("timestamp", LocalDateTime.now());
-
-        return ResponseEntity.status(status).body(errorResponse);
-    }
-
-    /**
-     * 페이지네이션 정보 생성
-     */
-    private Map<String, Object> createPaginationInfo(Page<?> page) {
-        Map<String, Object> pagination = new HashMap<>();
-        pagination.put("page", page.getNumber());
-        pagination.put("size", page.getSize());
-        pagination.put("totalElements", page.getTotalElements());
-        pagination.put("totalPages", page.getTotalPages());
-        pagination.put("hasNext", page.hasNext());
-        pagination.put("hasPrevious", page.hasPrevious());
-        pagination.put("isFirst", page.isFirst());
-        pagination.put("isLast", page.isLast());
-        return pagination;
-    }
 }

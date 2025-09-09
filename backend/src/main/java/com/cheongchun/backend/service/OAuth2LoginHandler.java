@@ -4,8 +4,10 @@ import com.cheongchun.backend.entity.RefreshToken;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.repository.UserRepository;
 import com.cheongchun.backend.security.CustomOAuth2User;
-import com.cheongchun.backend.service.RefreshTokenService;
+import com.cheongchun.backend.util.ControllerUtils;
 import com.cheongchun.backend.util.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +19,8 @@ import java.util.Optional;
 @Service
 public class OAuth2LoginHandler {
 
+    private static final Logger logger = LoggerFactory.getLogger(OAuth2LoginHandler.class);
+    
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
@@ -45,7 +49,7 @@ public class OAuth2LoginHandler {
                 
                 // 리프레시 토큰 생성
                 String userAgent = request.getHeader("User-Agent");
-                String ipAddress = getClientIpAddress(request);
+                String ipAddress = ControllerUtils.getClientIpAddress(request);
                 RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, userAgent, ipAddress);
                 
                 // JWT를 HttpOnly 쿠키로 설정 (7일)
@@ -83,7 +87,7 @@ public class OAuth2LoginHandler {
                 response.sendRedirect(errorUrl);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("OAuth2 로그인 처리 중 오류 발생", e);
             // 오류 시에도 리다이렉트
             String errorUrl = String.format(
                 "https://cheongchun-backend-40635111975.asia-northeast3.run.app/auth/oauth-error?code=oauth2_processing_error&message=%s", 
@@ -93,18 +97,5 @@ public class OAuth2LoginHandler {
         }
     }
     
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-        
-        return request.getRemoteAddr();
-    }
 
 }

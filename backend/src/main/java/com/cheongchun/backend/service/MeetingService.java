@@ -5,11 +5,11 @@ import com.cheongchun.backend.entity.Meeting;
 import com.cheongchun.backend.entity.MeetingParticipant;
 import com.cheongchun.backend.service.MeetingService;
 import com.cheongchun.backend.entity.User;
-import com.cheongchun.backend.entity.UserWishlist;
+import com.cheongchun.backend.exception.BusinessException;
+import com.cheongchun.backend.exception.ErrorCode;
 import com.cheongchun.backend.repository.MeetingParticipantRepository;
 import com.cheongchun.backend.repository.MeetingRepository;
 import com.cheongchun.backend.repository.UserWishlistRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,17 +27,15 @@ import java.util.stream.Collectors;
 @Transactional
 public class MeetingService {
 
-    @Autowired
     private final MeetingRepository meetingRepository;
-    @Autowired
     private final MeetingParticipantRepository participantRepository;
-    @Autowired
     private final UserWishlistRepository wishlistRepository;
-    @Autowired
     private final MeetingParticipantService meetingParticipantService;
+    
     public MeetingService(MeetingRepository meetingRepository,
                           MeetingParticipantRepository participantRepository,
-                          UserWishlistRepository wishlistRepository, MeetingParticipantService meetingParticipantService) {
+                          UserWishlistRepository wishlistRepository, 
+                          MeetingParticipantService meetingParticipantService) {
         this.meetingRepository = meetingRepository;
         this.participantRepository = participantRepository;
         this.wishlistRepository = wishlistRepository;
@@ -54,7 +52,7 @@ public class MeetingService {
         // 중복 모임 확인 (같은 사용자, 같은 제목, 같은 시작 시간)
         if (meetingRepository.existsByTitleAndCreatedByAndStartDate(
                 request.getTitle(), currentUser, request.getStartDate())) {
-            throw new RuntimeException("이미 같은 시간에 동일한 제목의 모임이 존재합니다");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 같은 시간에 동일한 제목의 모임이 존재합니다");
         }
 
         // Entity 생성
@@ -99,8 +97,8 @@ public class MeetingService {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new RuntimeException("모임을 찾을 수 없습니다"));
 
-        // 조회수 증가 (비동기 처리 권장)
-        incrementViewCount(meetingId);
+        // 조회수 증가 (비동기 처리 권장) 나중에 코드 리팩토링 해야함
+        //incrementViewCount(meetingId);
 
         return convertToMeetingResponse(meeting, currentUser);
     }
@@ -185,7 +183,7 @@ public class MeetingService {
 
         // 모임 시작 2시간 전까지만 수정 가능
         if (meeting.getStartDate().isBefore(LocalDateTime.now().plusHours(2))) {
-            throw new RuntimeException("모임 시작 2시간 전부터는 수정할 수 없습니다");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "모임 시작 2시간 전부터는 수정할 수 없습니다");
         }
 
         // 필드 업데이트 (null이 아닌 값만)
@@ -204,7 +202,7 @@ public class MeetingService {
         // 참가자가 있으면 삭제 불가
         long participantCount = participantRepository.countApprovedParticipants(meetingId);
         if (participantCount > 1) { // 주최자 제외하고 참가자가 있으면
-            throw new RuntimeException("참가자가 있는 모임은 삭제할 수 없습니다. 모임을 취소해주세요.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "참가자가 있는 모임은 삭제할 수 없습니다. 모임을 취소해주세요.");
         }
 
         meeting.setStatus(Meeting.Status.CANCELLED);
@@ -293,15 +291,15 @@ public class MeetingService {
 
         // 권한 확인: ID 기반으로 비교 (더 안전한 방법)
         if (meeting.getCreatedBy() == null) {
-            throw new RuntimeException("모임 주최자 정보가 없습니다");
+            throw new BusinessException(ErrorCode.MEETING_NOT_FOUND, "모임 주최자 정보가 없습니다");
         }
 
         if (currentUser == null) {
-            throw new RuntimeException("인증된 사용자가 아닙니다");
+            throw new BusinessException(ErrorCode.INVALID_USER_CREDENTIALS, "인증된 사용자가 아닙니다");
         }
 
         if (!Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId())) {
-            throw new RuntimeException("모임을 " + action + "할 권한이 없습니다");
+            throw new BusinessException(ErrorCode.INVALID_USER_CREDENTIALS, "모임을 " + action + "할 권한이 없습니다");
         }
 
         return meeting;
@@ -310,49 +308,49 @@ public class MeetingService {
     /**
      * 관리자 권한 확인 (추가 메서드)
      */
-    private boolean isAdminOrOwner(Meeting meeting, User currentUser) {
-        if (currentUser == null) {
-            return false;
-        }
+    // private boolean isAdminOrOwner(Meeting meeting, User currentUser) {
+    //     if (currentUser == null) {
+    //         return false;
+    //     }
 
-        // 관리자이거나 모임 주최자인 경우
-        return currentUser.getRole() == User.Role.ADMIN ||
-                Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
-    }
+    //     // 관리자이거나 모임 주최자인 경우
+    //     return currentUser.getRole() == User.Role.ADMIN ||
+    //             Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
+    // }
 
     /**
      * 모임 권한 확인 (읽기 전용 - 조회용)
      */
-    private boolean canViewMeeting(Meeting meeting, User currentUser) {
-        // 모든 사용자가 모임을 조회할 수 있음 (공개된 정보)
-        return true;
-    }
+    // private boolean canViewMeeting(Meeting meeting, User currentUser) {
+    //     // 모든 사용자가 모임을 조회할 수 있음 (공개된 정보)
+    //     return true;
+    // }
 
     /**
      * 모임 수정 권한 확인
      */
-    private boolean canEditMeeting(Meeting meeting, User currentUser) {
-        if (currentUser == null) {
-            return false;
-        }
+    // private boolean canEditMeeting(Meeting meeting, User currentUser) {
+    //     if (currentUser == null) {
+    //         return false;
+    //     }
 
-        // 관리자이거나 모임 주최자만 수정 가능
-        return currentUser.getRole() == User.Role.ADMIN ||
-                Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
-    }
+    //     // 관리자이거나 모임 주최자만 수정 가능
+    //     return currentUser.getRole() == User.Role.ADMIN ||
+    //             Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
+    // }
 
     /**
      * 모임 삭제 권한 확인
      */
-    private boolean canDeleteMeeting(Meeting meeting, User currentUser) {
-        if (currentUser == null) {
-            return false;
-        }
+    // private boolean canDeleteMeeting(Meeting meeting, User currentUser) {
+    //     if (currentUser == null) {
+    //         return false;
+    //     }
 
-        // 관리자이거나 모임 주최자만 삭제 가능
-        return currentUser.getRole() == User.Role.ADMIN ||
-                Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
-    }
+    //     // 관리자이거나 모임 주최자만 삭제 가능
+    //     return currentUser.getRole() == User.Role.ADMIN ||
+    //             Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId());
+    // }
 
 
     /**
@@ -405,17 +403,17 @@ public class MeetingService {
     private void validateMeetingRequest(CreatingMeetingRequest request) {
         // 시작일이 현재 시간 이후인지 확인
         if (request.getStartDate().isBefore(LocalDateTime.now().plusHours(1))) {
-            throw new RuntimeException("모임 시작 시간은 현재 시간으로부터 최소 1시간 이후여야 합니다");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "모임 시작 시간은 현재 시간으로부터 최소 1시간 이후여야 합니다");
         }
 
         // 종료일이 시작일 이후인지 확인
         if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new RuntimeException("모임 종료 시간은 시작 시간 이후여야 합니다");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "모임 종료 시간은 시작 시간 이후여야 합니다");
         }
 
         // 모임 시간이 너무 길지 않은지 확인 (최대 12시간)
         if (request.getEndDate().isAfter(request.getStartDate().plusHours(12))) {
-            throw new RuntimeException("모임 시간은 최대 12시간을 초과할 수 없습니다");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "모임 시간은 최대 12시간을 초과할 수 없습니다");
         }
     }
 

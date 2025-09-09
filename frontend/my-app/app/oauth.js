@@ -131,6 +131,8 @@ export default function OAuth() {
         style={styles.webview}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        sharedCookiesEnabled={true}
+        thirdPartyCookiesEnabled={true}
         startInLoadingState={true}
       />
     </View>

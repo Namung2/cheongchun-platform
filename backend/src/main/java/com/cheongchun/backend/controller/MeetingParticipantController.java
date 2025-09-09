@@ -4,6 +4,7 @@ import com.cheongchun.backend.dto.MeetingParticipantDto;
 import com.cheongchun.backend.entity.MeetingParticipant;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.service.MeetingParticipantService;
+import com.cheongchun.backend.util.ControllerUtils;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -45,9 +46,9 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
-            return createErrorResponse("JOIN_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("JOIN_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "모임 참여 신청 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "모임 참여 신청 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -67,9 +68,9 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return createErrorResponse("CANCEL_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("CANCEL_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "참여 신청 취소 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "참여 신청 취소 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -90,7 +91,7 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("STATUS_ERROR", "참여 상태 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("STATUS_ERROR", "참여 상태 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -110,14 +111,14 @@ public class MeetingParticipantController {
             response.put("success", true);
             response.put("data", Map.of(
                     "participants", participants.getContent(),
-                    "pagination", createPaginationInfo(participants)
+                    "pagination", ControllerUtils.createPaginationInfo(participants)
             ));
             response.put("message", "참가자 목록 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("PARTICIPANTS_ERROR", "참가자 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("PARTICIPANTS_ERROR", "참가자 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -137,14 +138,14 @@ public class MeetingParticipantController {
             response.put("success", true);
             response.put("data", Map.of(
                     "participations", participations.getContent(),
-                    "pagination", createPaginationInfo(participations)
+                    "pagination", ControllerUtils.createPaginationInfo(participations)
             ));
             response.put("message", "내 참여 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("MY_PARTICIPATIONS_ERROR", "내 참여 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("MY_PARTICIPATIONS_ERROR", "내 참여 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -165,7 +166,7 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("UPCOMING_ERROR", "곧 시작되는 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("UPCOMING_ERROR", "곧 시작되는 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -187,9 +188,9 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
-            return createErrorResponse("APPROVAL_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("APPROVAL_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "신청 승인 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "신청 승인 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -212,9 +213,9 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
-            return createErrorResponse("REJECTION_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("REJECTION_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "신청 거절 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "신청 거절 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -234,14 +235,14 @@ public class MeetingParticipantController {
             response.put("success", true);
             response.put("data", Map.of(
                     "applications", applications.getContent(),
-                    "pagination", createPaginationInfo(applications)
+                    "pagination", ControllerUtils.createPaginationInfo(applications)
             ));
             response.put("message", "신청 관리 목록 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("APPLICATIONS_ERROR", "신청 관리 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("APPLICATIONS_ERROR", "신청 관리 목록 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -262,7 +263,7 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("STATS_ERROR", "참여 통계 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("STATS_ERROR", "참여 통계 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -310,41 +311,8 @@ public class MeetingParticipantController {
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            return createErrorResponse("BATCH_ERROR", "배치 작업 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("BATCH_ERROR", "배치 작업 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // ===================== 유틸리티 메서드들 =====================
-
-    /**
-     * 에러 응답 생성
-     */
-    private ResponseEntity<?> createErrorResponse(String code, String message, HttpStatus status) {
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("success", false);
-        errorResponse.put("error", Map.of(
-                "code", code,
-                "message", message,
-                "details", "모임 참여 관련 작업을 처리할 수 없습니다"
-        ));
-        errorResponse.put("timestamp", LocalDateTime.now());
-
-        return ResponseEntity.status(status).body(errorResponse);
-    }
-
-    /**
-     * 페이지네이션 정보 생성
-     */
-    private Map<String, Object> createPaginationInfo(Page<?> page) {
-        Map<String, Object> pagination = new HashMap<>();
-        pagination.put("page", page.getNumber());
-        pagination.put("size", page.getSize());
-        pagination.put("totalElements", page.getTotalElements());
-        pagination.put("totalPages", page.getTotalPages());
-        pagination.put("hasNext", page.hasNext());
-        pagination.put("hasPrevious", page.hasPrevious());
-        pagination.put("isFirst", page.isFirst());
-        pagination.put("isLast", page.isLast());
-        return pagination;
-    }
 }

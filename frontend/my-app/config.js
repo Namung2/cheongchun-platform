@@ -2,15 +2,15 @@
 const Config = {
   // API 서버 설정
   API: {
-    BASE_URL: 'https://cheongchun-backend-40635111975.asia-northeast3.run.app',
+    BASE_URL: __DEV__ ? 'http://localhost:8080' : 'https://cheongchun-backend-40635111975.asia-northeast3.run.app',
     TIMEOUT: 10000,
   },
   
   // OAuth2 설정
   OAUTH: {
-    GOOGLE_URL: 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/oauth2/authorization/google',
-    KAKAO_URL: 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/oauth2/authorization/kakao',
-    NAVER_URL: 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/oauth2/authorization/naver',
+    GOOGLE_URL: __DEV__ ? 'http://localhost:8080/oauth2/authorization/google' : 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/oauth2/authorization/google',
+    KAKAO_URL: __DEV__ ? 'http://localhost:8080/oauth2/authorization/kakao' : 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/oauth2/authorization/kakao',
+    NAVER_URL: __DEV__ ? 'http://localhost:8080/oauth2/authorization/naver' : 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/oauth2/authorization/naver',
   },
   
   // 딥링크 설정

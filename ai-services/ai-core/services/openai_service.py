@@ -9,7 +9,7 @@ from .conversation_analyzer import ConversationAnalyzer
 class OpenAIService:
     def __init__(self):
         self.client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model = "gpt-4o-mini"
+        self.model = "gpt-3.5-turbo"
         self.backend_service = BackendService()
         self.conversation_analyzer = ConversationAnalyzer()
         

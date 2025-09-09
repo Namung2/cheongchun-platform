@@ -223,7 +223,10 @@ class ApiService {
   async getMeetings(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = `/meetings${queryString ? `?${queryString}` : ''}`;
-    return await this.request(endpoint);
+    console.log('모임 API 호출:', `${this.baseURL}${endpoint}`);
+    const response = await this.request(endpoint);
+    console.log('모임 API 응답:', response);
+    return response;
   }
 
   // 오늘의 베스트 모임
@@ -233,14 +236,21 @@ class ApiService {
 
   // 모임 상세 조회
   async getMeetingDetail(meetingId) {
-    return await this.request(`/meetings/${meetingId}`);
+    console.log('모임 상세 API 호출:', meetingId);
+    const response = await this.request(`/meetings/${meetingId}`);
+    console.log('모임 상세 API 응답:', response);
+    return response;
   }
 
   // 모임 참여 신청
-  async joinMeeting(meetingId) {
-    return await this.request(`/meetings/${meetingId}/join`, {
+  async joinMeeting(meetingId, applicationMessage = '') {
+    console.log('모임 참여 API 호출:', meetingId, applicationMessage);
+    const response = await this.request(`/meetings/${meetingId}/join`, {
       method: 'POST',
+      body: JSON.stringify({ applicationMessage })
     });
+    console.log('모임 참여 API 응답:', response);
+    return response;
   }
 
   // ===== 찜 기능 API =====
@@ -313,7 +323,7 @@ class ApiService {
 
   async checkHealth() {
     try {
-      const response = await fetch('https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/actuator/health');
+      const response = await fetch(`${this.baseURL}/actuator/health`);
       return await response.json();
     } catch (error) {
       throw new Error('서버에 연결할 수 없습니다');
