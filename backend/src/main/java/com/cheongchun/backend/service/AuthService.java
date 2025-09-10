@@ -31,7 +31,7 @@ public class AuthService {
     }
 
     @Transactional
-    // 쿠키 기반 사용자 생성 (토큰 없이)
+    //회원가입할 떄 사용
     public User createUser(SignUpRequest signUpRequest) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             throw new UserAlreadyExistsException("사용자명이 이미 사용 중입니다: " + signUpRequest.getUsername());
@@ -63,9 +63,16 @@ public class AuthService {
                         loginRequest.getPassword()
                 )
         );
-        
+
         // 인증된 사용자 객체 반환
         User authenticatedUser = (User) authentication.getPrincipal();
+
+        // ✅ 로컬 계정만 이메일 인증 확인 (소셜 로그인은 통과)
+        if (authenticatedUser.getProviderType() == User.ProviderType.LOCAL &&
+                !authenticatedUser.isEmailVerified()) {
+            throw new RuntimeException("이메일 인증이 필요합니다. 메일함을 확인해주세요.");
+        }
+
         return authenticatedUser;
     }
 

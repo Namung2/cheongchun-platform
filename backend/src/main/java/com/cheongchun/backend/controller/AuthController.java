@@ -7,10 +7,13 @@ import com.cheongchun.backend.dto.response.UserResponse;
 import com.cheongchun.backend.entity.RefreshToken;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.mapper.UserMapper;
+import com.cheongchun.backend.repository.UserRepository;
 import com.cheongchun.backend.service.AuthService;
 import com.cheongchun.backend.service.RefreshTokenService;
 import com.cheongchun.backend.util.JwtUtil;
 import com.cheongchun.backend.util.ControllerUtils;
+import com.cheongchun.backend.service.EmailVerificationService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -32,12 +35,14 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
     private final UserMapper userMapper;
+    private final EmailVerificationService emailVerificationService;
 
-    public AuthController(AuthService authService, JwtUtil jwtUtil, RefreshTokenService refreshTokenService, UserMapper userMapper) {
+    public AuthController(AuthService authService, JwtUtil jwtUtil, RefreshTokenService refreshTokenService, UserMapper userMapper ,EmailVerificationService emailVerificationService) {
         this.authService = authService;
         this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
         this.userMapper = userMapper;
+        this.emailVerificationService = emailVerificationService;
     }
 
     /**
@@ -47,22 +52,13 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserResponse>> registerUser(@Valid @RequestBody SignUpRequest signUpRequest,
                                           HttpServletRequest request, HttpServletResponse response) {
         try {
-            // 사용자 등록 및 토큰 생성
+            // 사용자 생성 (UserRepository.emailVerified = false)
             User newUser = authService.createUser(signUpRequest);
-            
-            // JWT 토큰 생성
-            String jwt = jwtUtil.generateTokenFromUsername(newUser.getEmail());
-            
-            // 리프레시 토큰 생성
-            String userAgent = request.getHeader("User-Agent");
-            String ipAddress = ControllerUtils.getClientIpAddress(request);
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(newUser, userAgent, ipAddress);
-            
-            // 쿠키에 토큰 설정
-            setAuthCookies(response, jwt, refreshToken.getToken());
 
-            // DTO를 사용한 응답
-            UserResponse userResponse = userMapper.toBasicUserResponse(newUser);
+            // 이메일 인증 메일 발송 메서드
+            emailVerificationService.sendVerificationEmail(newUser);
+
+            UserResponse userResponse = userMapper.toUserResponse(newUser);
             ApiResponse<UserResponse> apiResponse = ApiResponse.success(userResponse, "회원가입이 완료되었습니다");
 
             return ResponseEntity.ok(apiResponse);
@@ -74,6 +70,70 @@ public class AuthController {
                 "회원가입 중 오류가 발생했습니다"
             );
             return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    /**
+     * 회원 가입시 이메일 인증
+     */
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
+        try {
+            User user = emailVerificationService.verifyEmail(token);
+
+            UserResponse userResponse = userMapper.toUserResponse(user);
+            ApiResponse<UserResponse> apiResponse = ApiResponse.success(userResponse, "인증을 위해 이메일을 확인해주세요.");
+
+            return ResponseEntity.ok(apiResponse);
+
+        } catch (RuntimeException e) {
+            logger.warn("이메일 인증 실패: {}", e.getMessage());
+            ApiResponse<Void> errorResponse = ApiResponse.error(
+                    "EMAIL_VERIFICATION_FAILED",
+                    e.getMessage(),
+                    "인증 링크를 다시 확인해주세요"
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            logger.error("email 인증중 오류 발생", e);
+            ApiResponse<Void> errorResponse = ApiResponse.error(
+                    "EMAIL_VERIFICATION_ERROR",
+                    "이메일 인증 중 오류가 발생했습니다",
+                    e.getMessage()
+            );
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
+
+    /**
+     * 인증 이메일 재발송
+     */
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<Void>> resendVerificationEmail(@RequestParam String email) {
+        try {
+            emailVerificationService.resendVerificationEmail(email);
+
+            ApiResponse<Void> response = ApiResponse.success(null,
+                    "인증 이메일이 재발송되었습니다. 메일함을 확인해주세요.");
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            logger.warn("이메일 재발송 실패: {}", e.getMessage());
+            ApiResponse<Void> errorResponse = ApiResponse.error(
+                    "RESEND_FAILED",
+                    e.getMessage(),
+                    null
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+
+        } catch (Exception e) {
+            logger.error("이메일 재발송 중 오류 발생", e);
+            ApiResponse<Void> errorResponse = ApiResponse.error(
+                    "RESEND_ERROR",
+                    "이메일 재발송 중 오류가 발생했습니다",
+                    e.getMessage()
+            );
+            return ResponseEntity.status(500).body(errorResponse);
         }
     }
 

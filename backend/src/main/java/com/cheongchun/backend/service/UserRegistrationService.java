@@ -85,7 +85,7 @@ public class UserRegistrationService {
         return userRepository.save(existingUser);
     }
 
-    // private void validateEmailNotExists(String email) {
+    // private void validateEmailNotExists(String email) { => 중복 계정 방지 메서드 수정필요@@@
     //     Optional<User> existingUserByEmail = userRepository.findByEmail(email);
     //     if (existingUserByEmail.isPresent()) {
     //         // 구글 로그인의 경우 기존 계정이 있으면 예외 발생하지 않고 그대로 사용
@@ -106,7 +106,7 @@ public class UserRegistrationService {
         user.setName(oAuth2UserInfo.getName());
         user.setEmail(oAuth2UserInfo.getEmail());
         user.setProfileImageUrl(oAuth2UserInfo.getImageUrl());
-        user.setEmailVerified(true);
+        user.setEmailVerified(true); // <- 소셜 로그인은 이메일 인증 필요 X 
         user.setUsername(usernameGeneratorService.generateUniqueUsername(oAuth2UserInfo.getName()));
         
         return user;

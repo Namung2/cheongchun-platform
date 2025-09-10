@@ -1,21 +1,31 @@
 import openai
+import logging
 import os
 from typing import List, AsyncGenerator, Dict, Optional
 import asyncio
 import json
 from .backend_service import BackendService
 from .conversation_analyzer import ConversationAnalyzer
+from dotenv import load_dotenv
 
+
+load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 class OpenAIService:
     def __init__(self):
         self.client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model = "gpt-3.5-turbo"
+        self.model = "gpt-4o-mini"
         self.backend_service = BackendService()
         self.conversation_analyzer = ConversationAnalyzer()
+        self.logger = logging.getLogger(__name__)
         
         # 간결한 시니어 맞춤 시스템 프롬프트 (토큰 절약)
         self.base_system_prompt = """
-시니어용 AI 도우미입니다. 존댓말로 간결하고 따뜻하게 답변하며, 의료/법률 조언시 전문가 상담을 권유합니다.
+    시니어용 AI 도우미입니다. 존댓말로 간결하고 따뜻하게 답변하며, 의료/법률 조언시 전문가 상담을 권유합니다.
         """.strip()
     
     async def stream_chat_response(
@@ -53,6 +63,7 @@ class OpenAIService:
                     yield chunk.choices[0].delta.content
                     
         except Exception as e:
+            self.logger.exception("[OpenAIService][stream_chat_response] 에러 발생")
             error_msg = "죄송합니다. 현재 응답을 생성할 수 없습니다. 잠시 후 다시 시도해주세요."
             yield error_msg
     

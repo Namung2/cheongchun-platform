@@ -33,8 +33,9 @@ export default function login() {
         {/* 이메일 로그인 */}
         <TouchableOpacity
           style={styles.button}
-          onPress={() => router.push('/(tabs)/main')} // !@@! 임시로 main으로 보냄 !@@!
-        >
+          onPress={() => router.push('/(tabs)/main')} // !@@! 임시로 main으로 보냄 !@@! <- 확인했습니다. 아직 안이을게요
+          //로컬로그인 로직좀 구상하고 잇겠습니다
+        > 
           <Text style={styles.buttonText}>이메일 로그인</Text>
         </TouchableOpacity>
 

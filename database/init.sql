@@ -220,11 +220,12 @@ INSERT INTO user_interests (user_id, category, interest, priority) VALUES
 ON CONFLICT DO NOTHING;
 
 -- 모임 데이터 삽입
-INSERT INTO meetings (title, description, category, subcategory, location, address, start_date, end_date, max_participants, fee, difficulty_level, age_range, source, organizer_contact, created_by) VALUES
-    ('한강 산책 모임', '한강에서 함께 산책하며 건강도 챙기고 친목도 다져요', 'EXERCISE', 'WALKING', '서울시 영등포구', '한강공원 여의도지구', NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day 2 hours', 15, 0, 'BEGINNER', '50-70세', '사용자 생성', '010-1234-5678', 1),
-    ('독서 토론 모임', '이달의 책을 읽고 함께 토론해요', 'HOBBY', 'READING', '서울시 강남구', '강남구립도서관', NOW() + INTERVAL '2 days', NOW() + INTERVAL '2 days 2 hours', 10, 5000, 'BEGINNER', '50-65세', '사용자 생성', '010-2345-6789', 2),
-    ('요리 배우기', '전통 한식 만들기를 함께 배워요', 'HOBBY', 'COOKING', '서울시 송파구', '송파구 문화센터', NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days 3 hours', 12, 15000, 'INTERMEDIATE', '55-70세', '사용자 생성', '010-3456-7890', 3),
-    ('영화 감상 모임', '클래식 영화를 함께 보고 이야기해요', 'CULTURE', 'MOVIE', '서울시 서초구', '서초구 영화관', NOW() + INTERVAL '4 days', NOW() + INTERVAL '4 days 2 hours', 20, 8000, 'BEGINNER', '50-75세', '사용자 생성', '010-4567-8901', 4)
+INSERT INTO meetings 
+(title, description, category, subcategory, location, address, latitude, longitude, start_date, end_date, max_participants, fee, difficulty_level, age_range, source, organizer_contact, created_by) VALUES
+('한강 산책 모임', '한강에서 함께 산책하며 건강도 챙기고 친목도 다져요', 'EXERCISE', 'WALKING', '서울시 영등포구', '한강공원 여의도지구', 37.5286, 126.9326, NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day 2 hours', 15, 0, 'BEGINNER', '50-70세', '사용자 생성', '010-1234-5678', 1),
+('독서 토론 모임', '이달의 책을 읽고 함께 토론해요', 'HOBBY', 'READING', '서울시 강남구', '강남구립도서관', 37.5172, 127.0473, NOW() + INTERVAL '2 days', NOW() + INTERVAL '2 days 2 hours', 10, 5000, 'BEGINNER', '50-65세', '사용자 생성', '010-2345-6789', 2),
+('요리 배우기', '전통 한식 만들기를 함께 배워요', 'HOBBY', 'COOKING', '서울시 송파구', '송파구 문화센터', 37.5112, 127.0980, NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days 3 hours', 12, 15000, 'INTERMEDIATE', '55-70세', '사용자 생성', '010-3456-7890', 3),
+('영화 감상 모임', '클래식 영화를 함께 보고 이야기해요', 'CULTURE', 'MOVIE', '서울시 서초구', '서초구 영화관', 37.4836, 127.0324, NOW() + INTERVAL '4 days', NOW() + INTERVAL '4 days 2 hours', 20, 8000, 'BEGINNER', '50-75세', '사용자 생성', '010-4567-8901', 4)
 ON CONFLICT DO NOTHING;
 
 -- 찜 데이터 삽입

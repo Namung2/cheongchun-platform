@@ -2,6 +2,7 @@ package com.cheongchun.backend.util;
 
 import com.cheongchun.backend.config.properties.JwtProperties;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -40,6 +41,22 @@ public class JwtUtil {
         logger.info("JWT 유틸리티 초기화 완료");
     }
 
+    // Username or Email인증인지 확인
+    public Claims getClaimsFromToken(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (ExpiredJwtException e) {
+            // 만료된 토큰이어도 Claims는 반환 (필요한 경우)
+            return e.getClaims();
+        } catch (Exception e) {
+            throw new RuntimeException("토큰에서 정보를 추출할 수 없습니다", e);
+        }
+    }
+
     /**
      * JWT 토큰 생성 (사용자명 기반)
      */
@@ -49,6 +66,7 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .subject(username)
+                .issuer("authentication")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -88,4 +106,38 @@ public class JwtUtil {
             return false;
         }
     }
+
+    // 이메일 인증용 토큰 생성
+    public String generateEmailVerificationToken(Long userId) {
+        return Jwts.builder()
+                .subject(userId.toString())
+                .issuer("email-verification")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 86400000))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    // 이메일 인증 토큰 단기 일회용
+    public Long validateEmailVerificationToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)           // setSigningKey → verifyWith
+                    .build()
+                    .parseSignedClaims(token)        // parseClaimsJws → parseSignedClaims
+                    .getPayload();                   // getBody → getPayload
+
+            // 발급자 확인
+            if (!"email-verification".equals(claims.getIssuer())) {
+                throw new RuntimeException("잘못된 토큰 타입입니다");
+            }
+
+            return Long.parseLong(claims.getSubject());
+        } catch (ExpiredJwtException e) {
+            throw new RuntimeException("인증 링크가 만료되었습니다");
+        } catch (Exception e) {
+            throw new RuntimeException("유효하지 않은 인증 링크입니다");
+        }
+    }
+
 }

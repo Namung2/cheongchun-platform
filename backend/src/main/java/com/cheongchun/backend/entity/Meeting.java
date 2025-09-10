@@ -14,9 +14,6 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
-
 @Setter
 @Getter
 @Entity
@@ -45,7 +42,7 @@ public class Meeting {
 
     @Column(length = 200)
     private String location;
-
+    
     @Column(columnDefinition = "TEXT")
     private String address;
 
