@@ -2,56 +2,41 @@
 // 기존 프론트엔드 코드를 건드리지 않고 새로 추가하는 API 서비스
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Config from '../config';
 
 class ApiService {
   constructor() {
     // 프로덕션 환경 설정
-    this.baseURL = 'https://cheongchun-backend-40635111975.asia-northeast3.run.app/api';
-    this.timeout = 10000;
+    this.baseURL = Config.API.BASE_URL;
+    this.timeout = Config.API.TIMEOUT;
   }
 
-  // ===== 토큰 관리 =====
+  // ===== 토큰 관리 (쿠키 기반으로 전환, 하위 호환용) =====
   
   async getToken() {
-    try {
-      return await AsyncStorage.getItem('accessToken');
-    } catch (error) {
-      console.error('토큰 조회 실패:', error);
-      return null;
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    return null;
   }
 
   async setToken(token) {
-    try {
-      await AsyncStorage.setItem('accessToken', token);
-    } catch (error) {
-      console.error('토큰 저장 실패:', error);
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    console.log('토큰은 이제 쿠키로 자동 관리됩니다');
   }
 
   async getRefreshToken() {
-    try {
-      return await AsyncStorage.getItem('refreshToken');
-    } catch (error) {
-      console.error('리프레시 토큰 조회 실패:', error);
-      return null;
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    return null;
   }
 
   async setRefreshToken(token) {
-    try {
-      await AsyncStorage.setItem('refreshToken', token);
-    } catch (error) {
-      console.error('리프레시 토큰 저장 실패:', error);
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    console.log('리프레시 토큰은 이제 쿠키로 자동 관리됩니다');
   }
 
   async clearTokens() {
-    try {
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
-    } catch (error) {
-      console.error('토큰 삭제 실패:', error);
-    }
+    // 쿠키 기반으로 전환되어 더 이상 필요하지 않음
+    // 로그아웃은 서버 API 호출로 처리
+    console.log('토큰 정리는 로그아웃 API를 통해 처리됩니다');
   }
 
   // ===== 공통 API 호출 메서드 =====
@@ -66,11 +51,8 @@ class ApiService {
       ...options,
     };
 
-    // 인증 토큰 추가
-    const token = await this.getToken();
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
+    // 쿠키 기반 인증으로 전환 - Authorization 헤더 불필요
+    // 토큰은 쿠키에서 자동으로 전송됨
 
     try {
       const controller = new AbortController();
@@ -78,6 +60,7 @@ class ApiService {
 
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...config,
+        credentials: 'include', // 쿠키 포함하여 요청
         signal: controller.signal,
       });
 
@@ -240,7 +223,10 @@ class ApiService {
   async getMeetings(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = `/meetings${queryString ? `?${queryString}` : ''}`;
-    return await this.request(endpoint);
+    console.log('모임 API 호출:', `${this.baseURL}${endpoint}`);
+    const response = await this.request(endpoint);
+    console.log('모임 API 응답:', response);
+    return response;
   }
 
   // 오늘의 베스트 모임
@@ -250,14 +236,21 @@ class ApiService {
 
   // 모임 상세 조회
   async getMeetingDetail(meetingId) {
-    return await this.request(`/meetings/${meetingId}`);
+    console.log('모임 상세 API 호출:', meetingId);
+    const response = await this.request(`/meetings/${meetingId}`);
+    console.log('모임 상세 API 응답:', response);
+    return response;
   }
 
   // 모임 참여 신청
-  async joinMeeting(meetingId) {
-    return await this.request(`/meetings/${meetingId}/join`, {
+  async joinMeeting(meetingId, applicationMessage = '') {
+    console.log('모임 참여 API 호출:', meetingId, applicationMessage);
+    const response = await this.request(`/meetings/${meetingId}/join`, {
       method: 'POST',
+      body: JSON.stringify({ applicationMessage })
     });
+    console.log('모임 참여 API 응답:', response);
+    return response;
   }
 
   // ===== 찜 기능 API =====
@@ -330,7 +323,7 @@ class ApiService {
 
   async checkHealth() {
     try {
-      const response = await fetch('https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/actuator/health');
+      const response = await fetch(`${this.baseURL}/actuator/health`);
       return await response.json();
     } catch (error) {
       throw new Error('서버에 연결할 수 없습니다');

@@ -5,6 +5,7 @@ import com.cheongchun.backend.dto.AiConversationRequest;
 import com.cheongchun.backend.dto.AiUserInsightResponse;
 import com.cheongchun.backend.entity.AiConversation;
 import com.cheongchun.backend.entity.User;
+import com.cheongchun.backend.entity.UserAIProfile;
 import com.cheongchun.backend.repository.AiConversationRepository;
 import com.cheongchun.backend.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -33,21 +34,33 @@ public class AiUserService {
         Map<String, Object> profile = new HashMap<>();
         profile.put("userId", user.getId());
         profile.put("name", user.getName());
-        profile.put("ageGroup", user.getAiAgeGroup());
-        profile.put("conversationStyle", user.getAiConversationStyle());
-        profile.put("totalConversations", user.getAiTotalConversations());
-        profile.put("lastSummary", user.getAiLastSummary());
         
-        // JSON 파싱
-        try {
-            if (user.getAiHealthProfile() != null) {
-                profile.put("healthProfile", objectMapper.readValue(user.getAiHealthProfile(), Map.class));
+        UserAIProfile aiProfile = user.getAiProfile();
+        if (aiProfile != null) {
+            profile.put("ageGroup", aiProfile.getAgeGroup());
+            profile.put("conversationStyle", aiProfile.getConversationStyle());
+            profile.put("totalConversations", aiProfile.getTotalConversations());
+            profile.put("lastSummary", aiProfile.getLastSummary());
+            
+            // JSON 파싱
+            try {
+                if (aiProfile.getHealthProfile() != null) {
+                    profile.put("healthProfile", objectMapper.readValue(aiProfile.getHealthProfile(), Map.class));
+                }
+                if (aiProfile.getInterests() != null) {
+                    profile.put("interests", objectMapper.readValue(aiProfile.getInterests(), List.class));
+                }
+            } catch (JsonProcessingException e) {
+                log.warn("JSON 파싱 실패: {}", e.getMessage());
             }
-            if (user.getAiInterests() != null) {
-                profile.put("interests", objectMapper.readValue(user.getAiInterests(), List.class));
-            }
-        } catch (JsonProcessingException e) {
-            log.warn("JSON 파싱 실패: {}", e.getMessage());
+        } else {
+            // 기본값 설정
+            profile.put("ageGroup", null);
+            profile.put("conversationStyle", "formal");
+            profile.put("totalConversations", 0);
+            profile.put("lastSummary", null);
+            profile.put("healthProfile", null);
+            profile.put("interests", null);
         }
         
         return profile;
@@ -55,17 +68,19 @@ public class AiUserService {
     
     // 사용자 AI 프로필 업데이트
     public void updateUserAiProfile(User user, AiProfileUpdateRequest request) {
+        UserAIProfile aiProfile = user.getOrCreateAiProfile();
+        
         if (request.getAgeGroup() != null) {
-            user.setAiAgeGroup(request.getAgeGroup());
+            aiProfile.setAgeGroup(request.getAgeGroup());
         }
         if (request.getConversationStyle() != null) {
-            user.setAiConversationStyle(request.getConversationStyle());
+            aiProfile.setConversationStyle(request.getConversationStyle());
         }
         if (request.getHealthProfile() != null) {
-            user.setAiHealthProfile(request.getHealthProfile());
+            aiProfile.setHealthProfile(request.getHealthProfile());
         }
         if (request.getInterests() != null) {
-            user.setAiInterests(request.getInterests());
+            aiProfile.setInterests(request.getInterests());
         }
         
         userRepository.save(user);
@@ -103,7 +118,7 @@ public class AiUserService {
         AiConversation conversation = AiConversation.builder()
             .user(user)
             .userName(user.getName()) // 비정규화
-            .userAgeGroup(user.getAiAgeGroup()) // 비정규화
+            .userAgeGroup(user.getAiProfile() != null ? user.getAiProfile().getAgeGroup() : null) // 비정규화
             .sessionTitle(request.getSessionTitle())
             .totalMessages(request.getTotalMessages())
             .durationMinutes(request.getDurationMinutes())
@@ -136,9 +151,10 @@ public class AiUserService {
         AiConversation saved = aiConversationRepository.save(conversation);
         
         // 사용자 프로필 업데이트 (캐시 역할)
-        Integer currentCount = user.getAiTotalConversations();
-        user.setAiTotalConversations((currentCount != null ? currentCount : 0) + 1);
-        user.setAiLastSummary(request.getConversationSummary());
+        UserAIProfile aiProfile = user.getOrCreateAiProfile();
+        Integer currentCount = aiProfile.getTotalConversations();
+        aiProfile.setTotalConversations((currentCount != null ? currentCount : 0) + 1);
+        aiProfile.setLastSummary(request.getConversationSummary());
         userRepository.save(user);
         
         log.info("대화 저장 완료: conversationId={}, userId={}", saved.getId(), user.getId());
@@ -205,8 +221,8 @@ public class AiUserService {
             .frequentHealthTopics(healthTopics)
             .averageStressLevel(avgStress)
             .lastChatDate(lastConversation != null ? lastConversation.getCreatedAt() : null)
-            .lastSummary(user.getAiLastSummary())
-            .recommendedConversationStyle(user.getAiConversationStyle())
+            .lastSummary(user.getAiProfile() != null ? user.getAiProfile().getLastSummary() : null)
+            .recommendedConversationStyle(user.getAiProfile() != null ? user.getAiProfile().getConversationStyle() : "formal")
             .build();
     }
     
@@ -274,8 +290,9 @@ public class AiUserService {
         aiConversationRepository.delete(conversation);
         
         // 사용자 통계 업데이트
-        if (user.getAiTotalConversations() > 0) {
-            user.setAiTotalConversations(user.getAiTotalConversations() - 1);
+        UserAIProfile aiProfile = user.getAiProfile();
+        if (aiProfile != null && aiProfile.getTotalConversations() > 0) {
+            aiProfile.setTotalConversations(aiProfile.getTotalConversations() - 1);
             userRepository.save(user);
         }
         

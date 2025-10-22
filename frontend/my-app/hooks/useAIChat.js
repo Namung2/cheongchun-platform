@@ -24,8 +24,10 @@ export const useAIChat = (userId) => {
         return;
       }
 
-      // WebSocket 연결 URL 생성 (Android 에뮬레이터 대응)
-      const baseUrl = __DEV__ && Platform.OS === 'android' ? '10.0.2.2:8001' : 'localhost:8001';
+      // WebSocket 연결 URL 생성 (플랫폼별 대응)
+      const baseUrl = __DEV__ 
+        ? (Platform.OS === 'android' ? '10.0.2.2:8001' : 'localhost:8001')
+        : 'localhost:8001';
       const wsUrl = `ws://${baseUrl}/ws/chat/${userId}`;
       
       wsRef.current = new WebSocket(wsUrl);
@@ -133,8 +135,11 @@ export const useAIChat = (userId) => {
       const sessionTitle = generateSessionTitle(sessionRef.current.conversationData);
       const basicTopics = extractTopics(conversationText);
 
-      // AI Core에 요약 생성 요청
-      const aiCoreResponse = await fetch('http://localhost:8001/conversation/summary', {
+      // AI Core에 요약 생성 요청 (플랫폼별 URL)
+      const aiCoreUrl = __DEV__ 
+        ? (Platform.OS === 'android' ? 'http://10.0.2.2:8001' : 'http://localhost:8001')
+        : 'http://localhost:8001';
+      const aiCoreResponse = await fetch(`${aiCoreUrl}/conversation/summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

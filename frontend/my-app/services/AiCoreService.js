@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Android 에뮬레이터에서는 10.0.2.2 사용
-const AI_CORE_BASE_URL = __DEV__ && Platform.OS === 'android' 
-  ? 'http://10.0.2.2:8001' 
+// 플랫폼별 AI Core 서비스 URL 설정
+const AI_CORE_BASE_URL = __DEV__ 
+  ? (Platform.OS === 'android' ? 'http://10.0.2.2:8001' : 'http://localhost:8001')
   : 'http://localhost:8001';
 // const AI_CORE_BASE_URL = 'https://your-ai-core-domain.com'; // 프로덕션 환경
 

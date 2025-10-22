@@ -4,13 +4,14 @@ import com.cheongchun.backend.dto.*;
 import com.cheongchun.backend.entity.Meeting;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.service.MeetingService;
+import com.cheongchun.backend.util.ControllerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -18,10 +19,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/meetings")  // /api는 context-path에서 처리
+@RequestMapping("/meetings")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class MeetingController {
 
+    private static final Logger logger = LoggerFactory.getLogger(MeetingController.class);
+    
     private final MeetingService meetingService;
 
     public MeetingController(MeetingService meetingService) {
@@ -45,9 +48,9 @@ public class MeetingController {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
-            return createErrorResponse("MEETING_CREATION_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("MEETING_CREATION_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "모임 생성 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "모임 생성 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -68,9 +71,9 @@ public class MeetingController {
 
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return createErrorResponse("MEETING_NOT_FOUND", e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerUtils.createErrorResponse("MEETING_NOT_FOUND", e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -116,7 +119,7 @@ public class MeetingController {
             searchRequest.setMaxFee(maxFee);
             searchRequest.setDifficultyLevel(difficultyLevel); // enum은 null이어도 괜찼음
 
-            // TODO: startDate, endDate 파싱 추가 시 null 체크 필요
+            // Date parsing validation needed if implemented
 
             searchRequest.setSortBy(sortBy != null ? sortBy : "LATEST");
             searchRequest.setPage(page);
@@ -138,18 +141,15 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings)
+                    "pagination", ControllerUtils.createPaginationInfo(meetings)
             ));
             response.put("message", "모임 목록 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            // 에러 로깅 추가
-            System.err.println("모임 목록 조회 오류: " + e.getMessage());
-            e.printStackTrace();
-
-            return createErrorResponse("MEETING_LIST_ERROR", "모임 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            logger.error("모임 목록 조회 중 오류 발생", e);
+            return ControllerUtils.createErrorResponse("MEETING_LIST_ERROR", "모임 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     private boolean hasComplexFilters(String keyword, Meeting.Category category, String subcategory,
@@ -184,9 +184,9 @@ public class MeetingController {
 
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return createErrorResponse("MEETING_UPDATE_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("MEETING_UPDATE_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "모임 수정 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "모임 수정 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -206,9 +206,9 @@ public class MeetingController {
 
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return createErrorResponse("MEETING_DELETE_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerUtils.createErrorResponse("MEETING_DELETE_FAILED", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("INTERNAL_ERROR", "모임 삭제 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("INTERNAL_ERROR", "모임 삭제 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -228,14 +228,14 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings)
+                    "pagination", ControllerUtils.createPaginationInfo(meetings)
             ));
             response.put("message", "오늘의 베스트 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("TODAY_BEST_ERROR", "오늘의 베스트 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("TODAY_BEST_ERROR", "오늘의 베스트 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -255,14 +255,14 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings)
+                    "pagination", ControllerUtils.createPaginationInfo(meetings)
             ));
             response.put("message", "추천 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("RECOMMENDATION_ERROR", "추천 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("RECOMMENDATION_ERROR", "추천 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -286,7 +286,7 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings),
+                    "pagination", ControllerUtils.createPaginationInfo(meetings),
                     "category", meetingCategory.name()
             ));
             response.put("message", meetingCategory.name() + " 카테고리 모임 조회 성공");
@@ -294,11 +294,11 @@ public class MeetingController {
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            return createErrorResponse("INVALID_CATEGORY",
+            return ControllerUtils.createErrorResponse("INVALID_CATEGORY",
                     "유효하지 않은 카테고리입니다. 사용 가능한 카테고리: " + getValidCategories(),
                     HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return createErrorResponse("CATEGORY_ERROR", "카테고리별 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("CATEGORY_ERROR", "카테고리별 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -340,7 +340,7 @@ public class MeetingController {
 
         try {
             if (currentUser == null) {
-                return createErrorResponse("UNAUTHORIZED", "로그인이 필요합니다", HttpStatus.UNAUTHORIZED);
+                return ControllerUtils.createErrorResponse("UNAUTHORIZED", "로그인이 필요합니다", HttpStatus.UNAUTHORIZED);
             }
 
             Page<CreatingMeetingRequest.MeetingSummary> meetings = meetingService.getMyMeetings(currentUser, page, size);
@@ -349,14 +349,14 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings)
+                    "pagination", ControllerUtils.createPaginationInfo(meetings)
             ));
             response.put("message", "내 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("MY_MEETINGS_ERROR", "내 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("MY_MEETINGS_ERROR", "내 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -371,7 +371,7 @@ public class MeetingController {
 
         try {
             if (currentUser == null) {
-                return createErrorResponse("UNAUTHORIZED", "로그인이 필요합니다", HttpStatus.UNAUTHORIZED);
+                return ControllerUtils.createErrorResponse("UNAUTHORIZED", "로그인이 필요합니다", HttpStatus.UNAUTHORIZED);
             }
 
             Page<CreatingMeetingRequest.MeetingSummary> meetings = meetingService.getMyParticipatingMeetings(currentUser, page, size);
@@ -380,14 +380,14 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings)
+                    "pagination", ControllerUtils.createPaginationInfo(meetings)
             ));
             response.put("message", "참여 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("PARTICIPATING_MEETINGS_ERROR", "참여 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("PARTICIPATING_MEETINGS_ERROR", "참여 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -403,7 +403,7 @@ public class MeetingController {
 
         try {
             if (keyword == null || keyword.trim().isEmpty()) {
-                return createErrorResponse("INVALID_KEYWORD", "검색 키워드를 입력해주세요", HttpStatus.BAD_REQUEST);
+                return ControllerUtils.createErrorResponse("INVALID_KEYWORD", "검색 키워드를 입력해주세요", HttpStatus.BAD_REQUEST);
             }
 
             Page<CreatingMeetingRequest.MeetingSummary> meetings = meetingService.searchMeetings(keyword.trim(), page, size, currentUser);
@@ -412,7 +412,7 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings),
+                    "pagination", ControllerUtils.createPaginationInfo(meetings),
                     "keyword", keyword.trim()
             ));
             response.put("message", "모임 검색 완료");
@@ -420,7 +420,7 @@ public class MeetingController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("SEARCH_ERROR", "모임 검색 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("SEARCH_ERROR", "모임 검색 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -441,14 +441,14 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings)
+                    "pagination", ControllerUtils.createPaginationInfo(meetings)
             ));
             response.put("message", "취미 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("HOBBY_MEETINGS_ERROR", "취미 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("HOBBY_MEETINGS_ERROR", "취미 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -469,61 +469,17 @@ public class MeetingController {
             response.put("success", true);
             response.put("data", Map.of(
                     "meetings", meetings.getContent(),
-                    "pagination", createPaginationInfo(meetings)
+                    "pagination", ControllerUtils.createPaginationInfo(meetings)
             ));
             response.put("message", "고민/사연 모임 조회 성공");
             response.put("timestamp", LocalDateTime.now());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse("TALK_MEETINGS_ERROR", "고민/사연 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerUtils.createErrorResponse("TALK_MEETINGS_ERROR", "고민/사연 모임 조회 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // ===================== 유틸리티 메서드들 =====================
 
-    /**
-     * 에러 응답 생성
-     */
-    private ResponseEntity<?> createErrorResponse(String code, String message, HttpStatus status) {
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("success", false);
-        errorResponse.put("error", Map.of(
-                "code", code,
-                "message", message,
-                "details", "모임 관련 작업을 처리할 수 없습니다"
-        ));
-        errorResponse.put("timestamp", LocalDateTime.now());
-
-        return ResponseEntity.status(status).body(errorResponse);
-    }
-
-    /**
-     * 페이지네이션 정보 생성
-     */
-    private Map<String, Object> createPaginationInfo(Page<?> page) {
-        Map<String, Object> pagination = new HashMap<>();
-        pagination.put("page", page.getNumber());
-        pagination.put("size", page.getSize());
-        pagination.put("totalElements", page.getTotalElements());
-        pagination.put("totalPages", page.getTotalPages());
-        pagination.put("hasNext", page.hasNext());
-        pagination.put("hasPrevious", page.hasPrevious());
-        pagination.put("isFirst", page.isFirst());
-        pagination.put("isLast", page.isLast());
-        return pagination;
-    }
-
-    /**
-     * 인증된 사용자 확인
-     */
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated() &&
-                !"anonymousUser".equals(authentication.getName())) {
-            return (User) authentication.getPrincipal();
-        }
-        return null;
-    }
 
 }

@@ -24,6 +24,8 @@ dependencies {
     // 스프링 시큐리티 Oauth2 클라이언트 사용을 위함.
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 
+    // 메일 전송을 위함.
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'

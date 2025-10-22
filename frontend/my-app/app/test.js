@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Config from '../config';
 import {
   View,
   Text,
@@ -35,7 +36,7 @@ export default function TestScreen() {
   const testBackendHealth = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://cheongchun-backend-40635111975.asia-northeast3.run.app/api/actuator/health');
+      const response = await fetch(Config.API.BASE_URL + '/actuator/health');
       const data = await response.json();
       
       if (data.status === 'UP') {

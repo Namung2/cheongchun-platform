@@ -25,7 +25,7 @@ public class AuthenticationHandlerConfig {
     @Bean
     public AuthenticationSuccessHandler oauth2SuccessHandler() {
         return (request, response, authentication) -> {
-            oauth2LoginHandler.handleOAuth2Success(authentication.getPrincipal(), response);
+            oauth2LoginHandler.handleOAuth2Success(authentication.getPrincipal(), request, response);
         };
     }
 

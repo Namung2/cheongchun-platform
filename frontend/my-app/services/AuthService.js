@@ -42,23 +42,23 @@ class AuthService {
 
   async initializeAuth() {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      if (token) {
-        // 토큰이 있으면 사용자 정보 조회
-        const response = await apiService.getCurrentUser();
-        if (response.success) {
-          this.notifyAuthListeners(response.data);
-          return response.data;
-        } else {
-          // 토큰이 유효하지 않으면 삭제
-          await apiService.clearTokens();
-        }
+      console.log('🔄 인증 초기화 시작...');
+      // 쿠키 기반 인증으로 변경 - 직접 /auth/me API 호출
+      const response = await apiService.getCurrentUser();
+      console.log('📡 /auth/me 응답:', response);
+      
+      if (response.success) {
+        console.log('✅ 인증 성공, 사용자 정보:', response.data);
+        this.notifyAuthListeners(response.data);
+        return response.data;
+      } else {
+        console.log('❌ 인증 실패, 응답:', response);
+        // 인증 실패시 null 설정
+        this.notifyAuthListeners(null);
+        return null;
       }
-      this.notifyAuthListeners(null);
-      return null;
     } catch (error) {
-      console.error('인증 초기화 실패:', error);
-      await apiService.clearTokens();
+      console.error('💥 인증 초기화 실패:', error);
       this.notifyAuthListeners(null);
       return null;
     }
@@ -262,6 +262,33 @@ class AuthService {
       };
     } catch (error) {
       console.error('OAuth 성공 처리 오류:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // 쿠키 기반 OAuth 성공 처리 (새로운 쿠키 방식)
+  async handleCookieBasedOAuth() {
+    try {
+      // 쿠키에 토큰이 이미 설정되어 있으므로, 바로 사용자 정보 조회
+      const response = await apiService.getCurrentUser();
+      
+      if (response.success) {
+        // 서버에서 받은 사용자 정보로 상태 업데이트
+        this.notifyAuthListeners(response.data);
+        
+        return {
+          success: true,
+          user: response.data,
+          message: '로그인이 완료되었습니다'
+        };
+      } else {
+        throw new Error(response.error?.message || '사용자 정보 조회 실패');
+      }
+    } catch (error) {
+      console.error('쿠키 기반 OAuth 처리 오류:', error);
       return {
         success: false,
         error: error.message

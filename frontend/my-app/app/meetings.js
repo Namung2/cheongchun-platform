@@ -30,7 +30,8 @@ export default function MeetingsScreen() {
     description: '',
     location: '',
     maxParticipants: '',
-    meetingDate: '',
+    startDate: '',
+    endDate: '',
     category: '문화/취미'
   });
 
@@ -52,13 +53,21 @@ export default function MeetingsScreen() {
     
     setIsLoading(true);
     try {
+      console.log('모임 목록 로드 시작...');
       const response = await apiService.getMeetings();
-      if (response.success) {
-        setMeetings(response.data.content || []);
+      console.log('API 응답:', response);
+      
+      if (response && response.success) {
+        // 백엔드 응답 구조에 맞게 수정
+        const meetingsData = response.data?.meetings || response.data?.content || [];
+        console.log('모임 데이터:', meetingsData);
+        setMeetings(meetingsData);
       } else {
-        Alert.alert('오류', '모임 목록을 불러오는데 실패했습니다.');
+        console.error('API 응답 실패:', response);
+        Alert.alert('오류', response?.message || '모임 목록을 불러오는데 실패했습니다.');
       }
     } catch (error) {
+      console.error('API 호출 에러:', error);
       Alert.alert('오류', `모임 목록 조회 실패: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -74,8 +83,13 @@ export default function MeetingsScreen() {
 
   // 모임 생성
   const createMeeting = async () => {
-    if (!newMeeting.title || !newMeeting.location || !newMeeting.maxParticipants) {
+    if (!newMeeting.title || !newMeeting.location || !newMeeting.maxParticipants || !newMeeting.startDate) {
       Alert.alert('알림', '필수 항목을 모두 입력해주세요.');
+      return;
+    }
+
+    if (newMeeting.endDate && new Date(newMeeting.startDate) >= new Date(newMeeting.endDate)) {
+      Alert.alert('알림', '시작 날짜는 종료 날짜보다 빠른 시간이어야 합니다.');
       return;
     }
 
@@ -85,7 +99,8 @@ export default function MeetingsScreen() {
         description: newMeeting.description,
         location: newMeeting.location,
         maxParticipants: parseInt(newMeeting.maxParticipants),
-        meetingDate: newMeeting.meetingDate || new Date().toISOString(),
+        startDate: newMeeting.startDate,
+        endDate: newMeeting.endDate || null,
         category: newMeeting.category
       };
 
@@ -102,7 +117,8 @@ export default function MeetingsScreen() {
           description: '',
           location: '',
           maxParticipants: '',
-          meetingDate: '',
+          startDate: '',
+          endDate: '',
           category: '문화/취미'
         });
         loadMeetings();
@@ -114,18 +130,37 @@ export default function MeetingsScreen() {
     }
   };
 
-  // 모임 참여
-  const joinMeeting = async (meetingId) => {
+  // 모임 참여 신청 메시지 입력 모달 상태
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState('');
+  const [joiningMeetingId, setJoiningMeetingId] = useState(null);
+
+  // 모임 참여 준비
+  const prepareJoinMeeting = (meetingId) => {
+    setJoiningMeetingId(meetingId);
+    setApplicationMessage('');
+    setShowJoinModal(true);
+  };
+
+  // 모임 참여 실행
+  const joinMeeting = async () => {
+    if (!joiningMeetingId) return;
+    
     try {
-      const response = await apiService.joinMeeting(meetingId);
-      if (response.success) {
-        Alert.alert('성공', '모임에 참여했습니다!');
-        loadMeetings();
+      console.log('모임 참여 시도:', joiningMeetingId, applicationMessage);
+      const response = await apiService.joinMeeting(joiningMeetingId, applicationMessage);
+      
+      if (response && response.success) {
+        Alert.alert('성공', response.message || '모임 참여 신청이 완료되었습니다!');
+        setShowJoinModal(false);
         setShowDetailModal(false);
+        loadMeetings();
       } else {
-        Alert.alert('오류', response.error || '모임 참여에 실패했습니다.');
+        console.error('참여 신청 실패:', response);
+        Alert.alert('오류', response?.message || '모임 참여에 실패했습니다.');
       }
     } catch (error) {
+      console.error('참여 신청 에러:', error);
       Alert.alert('오류', `모임 참여 실패: ${error.message}`);
     }
   };
@@ -133,15 +168,28 @@ export default function MeetingsScreen() {
   // 모임 상세보기
   const showMeetingDetail = async (meeting) => {
     try {
+      console.log('모임 상세보기 시작:', meeting);
+      
+      // 일단 기본 정보로 모달 열기
+      setSelectedMeeting(meeting);
+      setShowDetailModal(true);
+      
+      // 상세 정보 추가 로드
       const response = await apiService.getMeetingDetail(meeting.id);
-      if (response.success) {
+      console.log('모임 상세 API 응답:', response);
+      
+      if (response && response.success) {
         setSelectedMeeting(response.data);
-        setShowDetailModal(true);
       } else {
-        Alert.alert('오류', '모임 상세 정보를 불러오는데 실패했습니다.');
+        console.warn('상세 정보 로드 실패, 기본 정보 사용');
       }
     } catch (error) {
-      Alert.alert('오류', `모임 상세 조회 실패: ${error.message}`);
+      console.error('모임 상세 조회 에러:', error);
+      // 에러가 발생해도 기본 정보로 모달은 표시
+      if (!selectedMeeting) {
+        setSelectedMeeting(meeting);
+        setShowDetailModal(true);
+      }
     }
   };
 
@@ -214,7 +262,8 @@ export default function MeetingsScreen() {
                 </Text>
               </View>
               <Text style={styles.meetingDate}>
-                🗓️ {new Date(meeting.meetingDate).toLocaleDateString()}
+                🗓️ {meeting.startDate ? new Date(meeting.startDate).toLocaleDateString() : '날짜 미설정'}
+                {meeting.endDate && ` ~ ${new Date(meeting.endDate).toLocaleDateString()}`}
               </Text>
             </TouchableOpacity>
           ))
@@ -270,6 +319,22 @@ export default function MeetingsScreen() {
                 onChangeText={(text) => setNewMeeting({...newMeeting, maxParticipants: text})}
                 placeholder="최대 참여자 수"
                 keyboardType="numeric"
+              />
+
+              <Text style={styles.inputLabel}>시작 날짜 및 시간 *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newMeeting.startDate}
+                onChangeText={(text) => setNewMeeting({...newMeeting, startDate: text})}
+                placeholder="YYYY-MM-DD HH:MM 형식으로 입력 (예: 2024-03-15 14:00)"
+              />
+
+              <Text style={styles.inputLabel}>종료 날짜 및 시간</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newMeeting.endDate}
+                onChangeText={(text) => setNewMeeting({...newMeeting, endDate: text})}
+                placeholder="YYYY-MM-DD HH:MM 형식으로 입력 (선택사항)"
               />
 
               <Text style={styles.inputLabel}>카테고리</Text>
@@ -340,8 +405,13 @@ export default function MeetingsScreen() {
                     👥 {selectedMeeting.currentParticipants || 0}/{selectedMeeting.maxParticipants}
                   </Text>
                   <Text style={styles.detailInfoText}>
-                    🗓️ {new Date(selectedMeeting.meetingDate).toLocaleDateString()}
+                    🗓️ 시작: {selectedMeeting.startDate ? new Date(selectedMeeting.startDate).toLocaleString() : '미설정'}
                   </Text>
+                  {selectedMeeting.endDate && (
+                    <Text style={styles.detailInfoText}>
+                      🗓️ 종료: {new Date(selectedMeeting.endDate).toLocaleString()}
+                    </Text>
+                  )}
                 </View>
               </ScrollView>
             )}
@@ -353,14 +423,67 @@ export default function MeetingsScreen() {
               >
                 <Text style={styles.cancelButtonText}>닫기</Text>
               </TouchableOpacity>
-              {selectedMeeting && (
-                <TouchableOpacity 
-                  style={styles.primaryButton}
-                  onPress={() => joinMeeting(selectedMeeting.id)}
-                >
-                  <Text style={styles.primaryButtonText}>참여하기</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity 
+                style={styles.primaryButton}
+                onPress={() => {
+                  console.log('참여하기 버튼 클릭, selectedMeeting:', selectedMeeting);
+                  if (selectedMeeting?.id) {
+                    prepareJoinMeeting(selectedMeeting.id);
+                  } else {
+                    Alert.alert('오류', '모임 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+                  }
+                }}
+              >
+                <Text style={styles.primaryButtonText}>참여하기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 모임 참여 신청 모달 */}
+      <Modal
+        visible={showJoinModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>모임 참여 신청</Text>
+              <TouchableOpacity onPress={() => setShowJoinModal(false)}>
+                <Text style={styles.closeButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalContent}>
+              <Text style={styles.inputLabel}>신청 메시지 (선택사항)</Text>
+              <TextInput
+                style={[styles.textInput, styles.multilineInput]}
+                value={applicationMessage}
+                onChangeText={setApplicationMessage}
+                placeholder="주최자에게 전달할 메시지를 입력하세요"
+                multiline
+                numberOfLines={4}
+              />
+              <Text style={styles.helperText}>
+                신청 메시지를 통해 주최자에게 자기소개나 참여 이유를 전달할 수 있습니다.
+              </Text>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={() => setShowJoinModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.primaryButton}
+                onPress={joinMeeting}
+              >
+                <Text style={styles.primaryButtonText}>참여 신청</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -615,5 +738,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#555',
     marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 });
