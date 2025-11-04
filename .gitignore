@@ -4,6 +4,8 @@
 .env.production
 .env.staging
 *.env
+.env.dev
+/backend/.env.backend
 **/application.properties
 **/application-local.properties
 **/application-prod.properties
