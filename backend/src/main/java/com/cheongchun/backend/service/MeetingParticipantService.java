@@ -4,6 +4,8 @@ import com.cheongchun.backend.dto.MeetingParticipantDto;
 import com.cheongchun.backend.entity.Meeting;
 import com.cheongchun.backend.entity.MeetingParticipant;
 import com.cheongchun.backend.entity.User;
+import com.cheongchun.backend.exception.BusinessException;
+import com.cheongchun.backend.exception.ErrorCode;
 import com.cheongchun.backend.repository.MeetingParticipantRepository;
 import com.cheongchun.backend.repository.MeetingRepository;
 import org.springframework.data.domain.Page;
@@ -31,8 +33,7 @@ public class MeetingParticipantService {
     private final Map<Long, Integer> autoApprovalLimits = new ConcurrentHashMap<>();
     private final Map<Long, AtomicInteger> autoApprovalCounts = new ConcurrentHashMap<>();
 
-    public MeetingParticipantService(MeetingParticipantRepository participantRepository,
-                                     MeetingRepository meetingRepository) {
+    public MeetingParticipantService(MeetingParticipantRepository participantRepository, MeetingRepository meetingRepository) {
         this.participantRepository = participantRepository;
         this.meetingRepository = meetingRepository;
     }
@@ -54,12 +55,12 @@ public class MeetingParticipantService {
                                                                  User currentUser) {
         // 기존 검증 로직...
         Meeting meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new RuntimeException("모임을 찾을 수 없습니다"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         validateJoinRequest(meeting, currentUser);
 
         if (participantRepository.existsByMeetingAndUser(meeting, currentUser)) {
-            throw new RuntimeException("이미 신청한 모임입니다");
+            throw new BusinessException(ErrorCode.ALREADY_JOINED_MEETING);
         }
 
         // 참가 신청 생성
@@ -105,16 +106,16 @@ public class MeetingParticipantService {
      */
     public void cancelApplication(Long meetingId, User currentUser) {
         MeetingParticipant participant = participantRepository.findByMeetingIdAndUserId(meetingId, currentUser.getId())
-                .orElseThrow(() -> new RuntimeException("참여 신청 내역을 찾을 수 없습니다"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPATION_NOT_FOUND));
 
         // 취소 가능 여부 확인
         if (!participant.canCancel()) {
-            throw new RuntimeException("취소할 수 없는 상태입니다");
+            throw new BusinessException(ErrorCode.CANNOT_CANCEL_PARTICIPATION);
         }
 
         // 모임 시작 시간 확인 (1시간 전까지만 취소 가능)
         if (participant.getMeeting().getStartDate().isBefore(LocalDateTime.now().plusHours(1))) {
-            throw new RuntimeException("모임 시작 1시간 전부터는 참여를 취소할 수 없습니다");
+            throw new BusinessException(ErrorCode.MEETING_START_SOON, "모임 시작 1시간 전부터는 참여를 취소할 수 없습니다");
         }
 
         participant.cancel();
@@ -131,19 +132,19 @@ public class MeetingParticipantService {
 
     public MeetingParticipantDto.ParticipantResponse approveApplication(Long participantId, User currentUser) {
         MeetingParticipant participant = participantRepository.findById(participantId)
-                .orElseThrow(() -> new RuntimeException("참여 신청을 찾을 수 없습니다"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPATION_NOT_FOUND));
 
         // 권한 확인 (주최자 또는 관리자)
         validateOrganizerPermission(participant.getMeeting(), currentUser);
 
         // 상태 확인
         if (participant.getStatus() != MeetingParticipant.Status.PENDING) {
-            throw new RuntimeException("승인 대기 중인 신청이 아닙니다");
+            throw new BusinessException(ErrorCode.INVALID_PARTICIPATION_STATUS);
         }
 
         // 정원 확인
         if (!participant.getMeeting().canJoin()) {
-            throw new RuntimeException("모임 정원이 가득 찼습니다");
+            throw new BusinessException(ErrorCode.MEETING_FULL);
         }
 
         // 승인 처리
@@ -163,14 +164,14 @@ public class MeetingParticipantService {
                                                                        MeetingParticipantDto.RejectRequest request,
                                                                        User currentUser) {
         MeetingParticipant participant = participantRepository.findById(participantId)
-                .orElseThrow(() -> new RuntimeException("참여 신청을 찾을 수 없습니다"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPATION_NOT_FOUND));
 
         // 권한 확인
         validateOrganizerPermission(participant.getMeeting(), currentUser);
 
         // 상태 확인
         if (participant.getStatus() != MeetingParticipant.Status.PENDING) {
-            throw new RuntimeException("승인 대기 중인 신청이 아닙니다");
+            throw new BusinessException(ErrorCode.INVALID_PARTICIPATION_STATUS);
         }
 
         // 거절 처리
@@ -295,22 +296,22 @@ public class MeetingParticipantService {
     private void validateJoinRequest(Meeting meeting, User currentUser) {
         // 모임 상태 확인
         if (meeting.getStatus() != Meeting.Status.RECRUITING) {
-            throw new RuntimeException("모집이 마감된 모임입니다");
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_CLOSED);
         }
 
         // 모임 시작 시간 확인
         if (meeting.getStartDate().isBefore(LocalDateTime.now().plusHours(1))) {
-            throw new RuntimeException("모임 시작 1시간 전부터는 참여 신청할 수 없습니다");
+            throw new BusinessException(ErrorCode.MEETING_START_SOON);
         }
 
         // 정원 확인
         if (!meeting.canJoin()) {
-            throw new RuntimeException("모임 정원이 가득 찼습니다");
+            throw new BusinessException(ErrorCode.MEETING_FULL);
         }
 
         // 자신이 주최한 모임인지 확인
         if (Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId())) {
-            throw new RuntimeException("자신이 주최한 모임에는 신청할 수 없습니다");
+            throw new BusinessException(ErrorCode.CANNOT_JOIN_OWN_MEETING);
         }
     }
 
@@ -320,7 +321,7 @@ public class MeetingParticipantService {
     private void validateOrganizerPermission(Meeting meeting, User currentUser) {
         if (!Objects.equals(meeting.getCreatedBy().getId(), currentUser.getId()) &&
                 currentUser.getRole() != User.Role.ADMIN) {
-            throw new RuntimeException("모임 관리 권한이 없습니다");
+            throw new BusinessException(ErrorCode.NO_PERMISSION_TO_MANAGE);
         }
     }
 

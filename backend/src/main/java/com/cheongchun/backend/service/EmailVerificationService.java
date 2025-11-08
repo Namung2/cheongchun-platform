@@ -1,10 +1,11 @@
 package com.cheongchun.backend.service;
 
 import com.cheongchun.backend.entity.User;
+import com.cheongchun.backend.exception.BusinessException;
+import com.cheongchun.backend.exception.ErrorCode;
 import com.cheongchun.backend.util.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -14,22 +15,25 @@ import com.cheongchun.backend.repository.UserRepository;
 @Service
 public class EmailVerificationService {
 
-    @Value("${app.email.from-address}")
-    private String fromAddress;
-
-    @Value("${app.email.base-url}")
-    private String baseUrl;
-
-    @Autowired
-    private JavaMailSender mailSender;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private UserRepository userRepository;
-
     private static final Logger logger = LoggerFactory.getLogger(EmailVerificationService.class);
+
+    private final JavaMailSender mailSender;
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
+    private final String fromAddress;
+    private final String baseUrl;
+
+    public EmailVerificationService(JavaMailSender mailSender,
+                                   JwtUtil jwtUtil,
+                                   UserRepository userRepository,
+                                   @Value("${app.email.from-address}") String fromAddress,
+                                   @Value("${app.email.base-url}") String baseUrl) {
+        this.mailSender = mailSender;
+        this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
+        this.fromAddress = fromAddress;
+        this.baseUrl = baseUrl;
+    }
 
 
     public void sendVerificationEmail(User user){
@@ -59,7 +63,7 @@ public class EmailVerificationService {
         }
         catch (Exception e){
             logger.error("Email 발송 실패: {}",user.getEmail());
-            throw new RuntimeException("이메일 발송에 실패했습니다:", e);
+            throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED, "이메일 발송에 실패했습니다: " + e.getMessage());
         }
     }
 
@@ -73,11 +77,11 @@ public class EmailVerificationService {
 
             // 사용자 조회
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
             // 이미 인증된 경우 처리
             if (user.isEmailVerified()) {
-                throw new RuntimeException("이미 인증된 계정입니다");
+                throw new BusinessException(ErrorCode.EMAIL_ALREADY_VERIFIED);
             }
 
             // 이메일 인증 완료
@@ -95,10 +99,10 @@ public class EmailVerificationService {
 
     public void resendVerificationEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("해당 이메일로 가입된 계정이 없습니다"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "해당 이메일로 가입된 계정이 없습니다"));
 
         if (user.isEmailVerified()) {
-            throw new RuntimeException("이미 인증된 계정입니다");
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_VERIFIED);
         }
 
         sendVerificationEmail(user);

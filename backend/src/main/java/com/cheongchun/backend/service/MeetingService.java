@@ -95,7 +95,7 @@ public class MeetingService {
     @Transactional(readOnly = true)
     public CreatingMeetingRequest.MeetingResponse getMeetingById(Long meetingId, User currentUser) {
         Meeting meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new RuntimeException("모임을 찾을 수 없습니다"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         // 조회수 증가 (비동기 처리 권장) 나중에 코드 리팩토링 해야함
         //incrementViewCount(meetingId);
@@ -287,7 +287,7 @@ public class MeetingService {
      */
     private Meeting findMeetingWithAuthorization(Long meetingId, User currentUser, String action) {
         Meeting meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new RuntimeException("모임을 찾을 수 없습니다"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         // 권한 확인: ID 기반으로 비교 (더 안전한 방법)
         if (meeting.getCreatedBy() == null) {

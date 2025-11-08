@@ -23,9 +23,6 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
     Page<Meeting> findByCategoryAndStatus(Meeting.Category category, Meeting.Status status, Pageable pageable);
 
-    // 지역 기반 검색
-    Page<Meeting> findByLocationContainingIgnoreCase(String location, Pageable pageable);
-
     @Query("SELECT m FROM Meeting m WHERE m.location LIKE %:location% AND m.status = :status")
     Page<Meeting> findByLocationAndStatus(@Param("location") String location,
                                           @Param("status") Meeting.Status status,

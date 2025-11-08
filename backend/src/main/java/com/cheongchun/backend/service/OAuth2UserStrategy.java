@@ -41,11 +41,10 @@ public class OAuth2UserStrategy {
         
         SocialAccount.Provider provider = SocialAccount.Provider.valueOf(registrationId.toUpperCase());
         
-        log.info("OAuth2 사용자 처리 시작: provider={}, email={}, providerId={}", 
-                provider, maskEmail(userInfo.getEmail()), maskProviderId(userInfo.getId()));
+        log.info("OAuth2 사용자 처리 시작: provider={}, email={}", provider, maskEmail(userInfo.getEmail()));
 
         try {
-            // 1. 기존 사용자 조회 (소셜 계정 → 이메일 순)
+            // 1. 기존 사용자 조회 (이메일)
             Optional<User> existingUser = userLookupService.findExistingUser(provider, userInfo);
             
             if (existingUser.isPresent()) {
@@ -92,10 +91,6 @@ public class OAuth2UserStrategy {
         if (userInfo.getEmail() == null || userInfo.getEmail().trim().isEmpty()) {
             throw new IllegalArgumentException("이메일 정보는 필수입니다");
         }
-        
-        if (userInfo.getId() == null || userInfo.getId().trim().isEmpty()) {
-            throw new IllegalArgumentException("소셜 계정 ID는 필수입니다");
-        }
 
         // 이메일 형식 기본 검증
         if (!userInfo.getEmail().contains("@")) {
@@ -124,12 +119,4 @@ public class OAuth2UserStrategy {
         }
     }
 
-    // 보안: 소셜 계정 ID 마스킹 (로깅용)
-    private String maskProviderId(String providerId) {
-        if (providerId == null || providerId.length() < 4) {
-            return "***";
-        }
-        
-        return providerId.substring(0, 2) + "***" + providerId.substring(providerId.length() - 2);
-    }
 }

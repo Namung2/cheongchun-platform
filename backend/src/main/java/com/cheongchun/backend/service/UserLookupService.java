@@ -56,19 +56,9 @@ public class UserLookupService {
 
     /**
      * OAuth2 사용자 정보로 기존 사용자 조회
-     * 1. 소셜 계정으로 먼저 조회
-     * 2. 없으면 이메일로 조회
+     *  이메일로 조회
      */
     public Optional<User> findExistingUser(SocialAccount.Provider provider, OAuth2UserInfo userInfo) {
-        log.info("기존 사용자 조회 시작: provider={}, email={}, providerId={}", 
-                provider, maskEmail(userInfo.getEmail()), maskProviderId(userInfo.getId()));
-        
-        // 1. 소셜 계정으로 조회
-        Optional<User> socialUser = findBySocialAccount(provider, userInfo.getId());
-        if (socialUser.isPresent()) {
-            log.info("소셜 계정으로 기존 사용자 발견: userId={}", socialUser.get().getId());
-            return socialUser;
-        }
 
         // 2. 이메일로 조회
         Optional<User> emailUser = findByEmail(userInfo.getEmail());
@@ -81,19 +71,6 @@ public class UserLookupService {
         return emailUser;
     }
 
-    /**
-     * 사용자 존재 여부 확인
-     */
-    public boolean existsByEmail(String email) {
-        return findByEmail(email).isPresent();
-    }
-
-    /**
-     * 소셜 계정 존재 여부 확인
-     */
-    public boolean existsBySocialAccount(SocialAccount.Provider provider, String providerId) {
-        return findBySocialAccount(provider, providerId).isPresent();
-    }
 
     // 보안: 이메일 마스킹 (로깅용)
     private String maskEmail(String email) {
@@ -114,14 +91,5 @@ public class UserLookupService {
         } else {
             return localPart.charAt(0) + "***" + localPart.charAt(localPart.length() - 1) + domain;
         }
-    }
-
-    // 보안: 소셜 계정 ID 마스킹 (로깅용)
-    private String maskProviderId(String providerId) {
-        if (providerId == null || providerId.length() < 4) {
-            return "***";
-        }
-        
-        return providerId.substring(0, 2) + "***" + providerId.substring(providerId.length() - 2);
     }
 }

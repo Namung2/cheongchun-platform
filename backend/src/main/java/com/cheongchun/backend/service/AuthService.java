@@ -5,6 +5,8 @@ import com.cheongchun.backend.dto.SignUpRequest;
 import com.cheongchun.backend.entity.User;
 import com.cheongchun.backend.exception.UserAlreadyExistsException;
 import com.cheongchun.backend.exception.EmailAlreadyExistsException;
+import com.cheongchun.backend.exception.BusinessException;
+import com.cheongchun.backend.exception.ErrorCode;
 import com.cheongchun.backend.repository.UserRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -70,7 +72,7 @@ public class AuthService {
         // ✅ 로컬 계정만 이메일 인증 확인 (소셜 로그인은 통과)
         if (authenticatedUser.getProviderType() == User.ProviderType.LOCAL &&
                 !authenticatedUser.isEmailVerified()) {
-            throw new RuntimeException("이메일 인증이 필요합니다. 메일함을 확인해주세요.");
+            throw new BusinessException(ErrorCode.EMAIL_NOT_VERIFIED, "이메일 인증이 필요합니다. 메일함을 확인해주세요.");
         }
 
         return authenticatedUser;
