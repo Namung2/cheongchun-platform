@@ -10,7 +10,7 @@ function SplashScreen({ fadeOut }) {
         bottom: 0,
         width: '100%',
         height: '100%',
-        background: '#1fe56bff',
+        background: '#ffffffff',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
@@ -21,10 +21,11 @@ function SplashScreen({ fadeOut }) {
       }}
     >
       <div className="text-center px-4">
-        <h1 className="text-white" style={{ 
+         <h1 style={{ 
           fontSize: '3rem', 
           fontWeight: '900',
-          letterSpacing: '2px'
+          letterSpacing: '2px',
+          color: '#6C63FF'
         }}>
           하루안부
         </h1>

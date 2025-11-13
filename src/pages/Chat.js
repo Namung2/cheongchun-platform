@@ -7,7 +7,8 @@ function Chat() {
       id: 1,
       text: "안녕하세요! 하루안부 AI입니다. 오늘 기분이 어떠세요?",
       sender: "bot",
-      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
     }
   ]);
   const [inputText, setInputText] = useState("");
@@ -33,7 +34,8 @@ function Chat() {
       id: messages.length + 1,
       text: inputText,
       sender: "user",
-      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
     };
 
     setMessages([...messages, userMessage]);
@@ -45,7 +47,8 @@ function Chat() {
         id: messages.length + 2,
         text: "말씀 잘 들었어요. 더 자세히 이야기해주시겠어요?",
         sender: "bot",
-        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
       };
       setMessages(prev => [...prev, botMessage]);
     }, 1000);
@@ -98,6 +101,7 @@ function Chat() {
         text: `📎 ${file.name} (${(file.size / 1024).toFixed(1)}KB)`,
         sender: "user",
         time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
         isFile: true
       };
 
@@ -109,7 +113,8 @@ function Chat() {
           id: messages.length + 2,
           text: "파일을 잘 받았어요! 확인해볼게요.",
           sender: "bot",
-          time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+          time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
         };
         setMessages(prev => [...prev, botMessage]);
       }, 1000);
@@ -120,16 +125,16 @@ function Chat() {
   };
 
   return (
-    <div className="d-flex flex-column bg-white" style={{ height: 'calc(100vh - 56px - 64px)', marginTop: '56px', marginBottom: '64px' }}>
+    <div className="d-flex flex-column bg-white" style={{ height: 'calc(100vh - 64px)', marginBottom: '64px' }}>
       {/* 헤더 */}
-      <div className="p-3 border-bottom bg-light">
+      <div className="p-3 border-bottom bg-light" style={{ minHeight: 'auto' }}>
         <div className="d-flex align-items-center">
           <div className="me-3">
             <div style={{
               width: '45px',
               height: '45px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #0DD85B 0%, #00B894 100%)',
+              background: 'linear-gradient(135deg, #6C63FF 0%, #00B894 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -147,19 +152,38 @@ function Chat() {
       </div>
 
       {/* 메시지 영역 */}
-      <div className="flex-grow-1 overflow-auto p-3" style={{ backgroundColor: '#f8f9fa' }}>
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`d-flex mb-3 ${message.sender === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
-          >
+      <div className="flex-grow-1 overflow-auto p-3 pt-2" style={{ backgroundColor: '#f8f9fa' }}>
+        {messages.map((message, index) => {
+          // 날짜 구분선 표시 (이전 메시지와 날짜가 다르면)
+          const showDateDivider = index === 0 || messages[index - 1].date !== message.date;
+          
+          return (
+            <div key={message.id}>
+              {showDateDivider && (
+                <div className="text-center my-2">
+                  <span 
+                    className="badge bg-light text-dark" 
+                    style={{ 
+                      fontSize: '11px', 
+                      fontWeight: 'normal',
+                      padding: '5px 12px'
+                    }}
+                  >
+                    {message.date}
+                  </span>
+                </div>
+              )}
+              
+              <div
+                className={`d-flex mb-3 ${message.sender === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
+              >
             {message.sender === 'bot' && (
               <div className="me-2">
                 <div style={{
                   width: '35px',
                   height: '35px',
                   borderRadius: '50%',
-                  background: '#0DD85B',
+                  background: '#6C63FF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -170,16 +194,17 @@ function Chat() {
               </div>
             )}
             
-            <div style={{ maxWidth: '70%' }}>
+            <div style={{ maxWidth: '65%' }}>
               <div
-                className={`p-3 rounded-3 ${
+                className={`p-2 px-3 rounded-3 ${
                   message.sender === 'user'
-                    ? 'bg-success text-white'
+                    ? 'text-white'
                     : 'bg-white border'
                 }`}
                 style={{
                   borderRadius: message.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  background: message.sender === 'user' ? '#6C63FF' : 'white'
                 }}
               >
                 <p className="mb-0" style={{ fontSize: '15px' }}>{message.text}</p>
@@ -205,8 +230,10 @@ function Chat() {
                 </div>
               </div>
             )}
-          </div>
-        ))}
+              </div>
+            </div>
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
@@ -221,8 +248,8 @@ function Chat() {
               zIndex: 100,
               animation: 'fadeIn 0.3s ease-in',
               bottom: 0,
-              top: '-250px',
-              paddingBottom: '30px'
+              top: '-500px',
+              paddingBottom: '80px'
             }}
           >
             <div className="text-center">
@@ -240,7 +267,7 @@ function Chat() {
                   position: 'relative',
                   zIndex: 3
                 }}>
-                  <i className="fas fa-microphone fa-2x" style={{ color: '#0DD85B' }}></i>
+                  <i className="fas fa-microphone fa-2x" style={{ color: '#6C63FF' }}></i>
                 </div>
                 {/* 펄스 웨이브 */}
                 <div style={{
@@ -313,7 +340,7 @@ function Chat() {
               disabled={isRecording}
               style={{ 
                 border: '1px solid #dee2e6',
-                fontSize: '15px'
+                fontSize: '16px'
               }}
             />
             <button 
@@ -326,19 +353,22 @@ function Chat() {
             </button>
           </div>
           <button 
-            className="btn btn-success rounded-circle ms-2"
-            onClick={handleSend}
-            disabled={inputText.trim() === ""}
-            style={{ 
-              width: '45px', 
-              height: '45px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <i className="fas fa-paper-plane"></i>
-          </button>
+  className="btn rounded-circle ms-2"
+  onClick={handleSend}
+  disabled={inputText.trim() === ""}
+  style={{ 
+    width: '45px', 
+    height: '45px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#6C63FF',
+    border: 'none',
+    color: 'white'
+  }}
+>
+  <i className="fas fa-paper-plane"></i>
+</button>
         </div>
         
         {/* CSS 애니메이션 */}
