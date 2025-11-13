@@ -42,7 +42,7 @@ function AppContent() {
       clearTimeout(fadeTimer);
       clearTimeout(removeTimer);
     };
-  }, []); // ← navigate 의존성 제거!
+  }, [navigate , showSplash]); 
 
   return (
     <div style={{ 
