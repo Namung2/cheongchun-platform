@@ -27,7 +27,7 @@ function VoiceCallScreen() {
           padding: '40px 20px'
         }}
       >
-        {/* AI 아이콘 상단 */}
+        {/* AI 아이콘 상단 
         <div className="mb-4" style={{ animation: isCalling ? 'bounce 2s ease-in-out infinite' : 'none' }}>
           <div style={{
             width: '100px',
@@ -42,7 +42,8 @@ function VoiceCallScreen() {
           }}>
             <i className="fas fa-robot" style={{ fontSize: '50px', color: 'white' }}></i>
           </div>
-        </div>
+        </div> */}
+
 
         {/* 상태 표시 */}
         <div className="text-center mb-5">

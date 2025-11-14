@@ -16,7 +16,8 @@ import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import Alerts from "./pages/Alerts";
 import Profile from "./pages/Profile";
-
+import Signup from "./pages/Signup";
+import EmailLogin from "./pages/Email-login";
 
 function AppContent() {
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,8 @@ function AppContent() {
         <Route path="/chat" element={<MainLayout><Chat /></MainLayout>} />
         <Route path="/alerts" element={<MainLayout><Alerts /></MainLayout>} />
         <Route path="/profile" element={<MainLayout><Profile /></MainLayout>} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/email-login" element={<EmailLogin />} />
       </Routes>
     </div>
   );
